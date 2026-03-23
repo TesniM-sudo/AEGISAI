@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+pandas
+yfinance
+scikit-learn
+matplotlib
+pytest
+httpx
+openpyxl
