@@ -1,0 +1,23 @@
+# Virtual environment
+.venv/
+.venv.zip
+
+# Database
+*.db
+
+# ML models
+*.pkl
+
+# Data files
+*.xlsx
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# PyCharm settings
+.idea/
+
+# Pytest cache
+.pytest_cache/
