@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { cryptoAssets } from "@/data/cryptoData";
 
@@ -87,7 +87,6 @@ const getStartingCash = (role: SessionData["role"]) => (role === "admin" ? 10000
 
 const Account = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -95,35 +94,12 @@ const Account = () => {
   const [session, setSession] = useState<SessionData | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioState | null>(null);
   const [error, setError] = useState("");
-  const [tradeError, setTradeError] = useState("");
-  const [tradeNote, setTradeNote] = useState("");
-  const [selectedSymbol, setSelectedSymbol] = useState(cryptoAssets[0].symbol);
-  const [quantityInput, setQuantityInput] = useState("1");
 
   const priceBySymbol = useMemo(() => {
     return Object.fromEntries(
       cryptoAssets.map((asset) => [asset.symbol, parseAssetPrice(asset.price)])
     ) as Record<string, number>;
   }, []);
-
-  const selectedAsset = useMemo(
-    () => cryptoAssets.find((asset) => asset.symbol === selectedSymbol) ?? cryptoAssets[0],
-    [selectedSymbol]
-  );
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const symbolFromUrl = params.get("symbol");
-    const sideFromUrl = params.get("side");
-
-    if (symbolFromUrl && cryptoAssets.some((asset) => asset.symbol === symbolFromUrl)) {
-      setSelectedSymbol(symbolFromUrl);
-    }
-    if (sideFromUrl === "buy" || sideFromUrl === "sell") {
-      setTradeNote(`Ready to ${sideFromUrl.toUpperCase()} ${symbolFromUrl ?? selectedSymbol}.`);
-      setTradeError("");
-    }
-  }, [location.search]);
 
   useEffect(() => {
     const users = loadUsers();
@@ -218,8 +194,6 @@ const Account = () => {
     setSession(null);
     setPortfolio(null);
     setPassword("");
-    setTradeError("");
-    setTradeNote("");
   };
 
   const closeModal = () => {
@@ -237,93 +211,6 @@ const Account = () => {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
-
-  const savePortfolioForCurrentSession = (nextPortfolio: PortfolioState) => {
-    if (!session) return;
-    const allPortfolios = loadPortfolios();
-    const key = session.email.toLowerCase();
-    const nextPortfolios = { ...allPortfolios, [key]: nextPortfolio };
-    savePortfolios(nextPortfolios);
-    setPortfolio(nextPortfolio);
-  };
-
-  const handleTrade = (side: "buy" | "sell") => {
-    if (!portfolio) return;
-    const units = Number(quantityInput);
-    if (!Number.isFinite(units) || units <= 0) {
-      setTradeError("Please enter a valid quantity.");
-      setTradeNote("");
-      return;
-    }
-
-    const price = priceBySymbol[selectedSymbol];
-    if (!price) {
-      setTradeError("Price unavailable for this asset.");
-      setTradeNote("");
-      return;
-    }
-
-    const position = portfolio.holdings.find((holding) => holding.symbol === selectedSymbol);
-
-    if (side === "buy") {
-      const cost = units * price;
-      if (cost > portfolio.cash) {
-        setTradeError("Not enough cash for this order.");
-        setTradeNote("");
-        return;
-      }
-
-      const nextHoldings = [...portfolio.holdings];
-      if (position) {
-        const newQuantity = position.quantity + units;
-        const newAvgPrice = (position.avgPrice * position.quantity + cost) / newQuantity;
-        const index = nextHoldings.findIndex((holding) => holding.symbol === selectedSymbol);
-        nextHoldings[index] = { ...position, quantity: newQuantity, avgPrice: newAvgPrice };
-      } else {
-        nextHoldings.push({
-          symbol: selectedAsset.symbol,
-          name: selectedAsset.name,
-          quantity: units,
-          avgPrice: price,
-        });
-      }
-
-      const nextPortfolio: PortfolioState = {
-        ...portfolio,
-        cash: portfolio.cash - cost,
-        holdings: nextHoldings,
-      };
-      savePortfolioForCurrentSession(nextPortfolio);
-      setTradeError("");
-      setTradeNote(`Bought ${units} ${selectedAsset.symbol} at $${price.toFixed(2)}.`);
-      return;
-    }
-
-    if (!position || position.quantity < units) {
-      setTradeError("You don't have enough units to sell.");
-      setTradeNote("");
-      return;
-    }
-
-    const proceeds = units * price;
-    const remainingQuantity = position.quantity - units;
-    const nextHoldings = portfolio.holdings
-      .map((holding) =>
-        holding.symbol === selectedSymbol
-          ? { ...holding, quantity: remainingQuantity }
-          : holding
-      )
-      .filter((holding) => holding.quantity > 0);
-
-    const nextPortfolio: PortfolioState = {
-      ...portfolio,
-      cash: portfolio.cash + proceeds,
-      holdings: nextHoldings,
-    };
-    savePortfolioForCurrentSession(nextPortfolio);
-    setTradeError("");
-    setTradeNote(`Sold ${units} ${selectedAsset.symbol} at $${price.toFixed(2)}.`);
-  };
 
   const marketValue = useMemo(() => {
     if (!portfolio) return 0;
@@ -485,66 +372,22 @@ const Account = () => {
 
             <div className="mt-6 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Trade</p>
-                <h2 className="mt-2 text-xl font-semibold text-foreground">Buy or sell assets</h2>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Account statistics</p>
+                <h2 className="mt-2 text-xl font-semibold text-foreground">Performance snapshot</h2>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="asset" className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      Asset
-                    </label>
-                    <select
-                      id="asset"
-                      value={selectedSymbol}
-                      onChange={(event) => setSelectedSymbol(event.target.value)}
-                      className="mt-2 w-full rounded-xl border border-white/15 bg-white/[0.03] px-3 py-2.5 text-sm text-foreground outline-none focus:border-cyan-300/40"
-                    >
-                      {cryptoAssets.map((asset) => (
-                        <option key={asset.symbol} value={asset.symbol} className="bg-slate-900 text-foreground">
-                          {asset.symbol} ({asset.name})
-                        </option>
-                      ))}
-                    </select>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Market value</p>
+                    <p className="mt-2 text-lg font-semibold text-foreground">${marketValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
                   </div>
-                  <div>
-                    <label htmlFor="quantity" className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      Quantity
-                    </label>
-                    <input
-                      id="quantity"
-                      type="number"
-                      min="0.0001"
-                      step="0.0001"
-                      value={quantityInput}
-                      onChange={(event) => setQuantityInput(event.target.value)}
-                      className="mt-2 w-full rounded-xl border border-white/15 bg-white/[0.03] px-3 py-2.5 text-sm text-foreground outline-none focus:border-cyan-300/40"
-                    />
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Total equity</p>
+                    <p className="mt-2 text-lg font-semibold text-foreground">
+                      ${((portfolio?.cash ?? 0) + marketValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </p>
                   </div>
                 </div>
 
-                <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-xs text-muted-foreground">Current price: <span className="text-foreground">${priceBySymbol[selectedAsset.symbol].toLocaleString(undefined, { maximumFractionDigits: 4 })}</span></p>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleTrade("buy")}
-                    className="rounded-xl border border-emerald-300/35 bg-emerald-300/10 px-4 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-300/20"
-                  >
-                    Buy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTrade("sell")}
-                    className="rounded-xl border border-amber-300/35 bg-amber-300/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20"
-                  >
-                    Sell
-                  </button>
-                </div>
-
-                {tradeError && <p className="mt-3 text-sm text-red-300">{tradeError}</p>}
-                {tradeNote && <p className="mt-3 text-sm text-cyan-100">{tradeNote}</p>}
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -574,7 +417,7 @@ const Account = () => {
                     })
                   ) : (
                     <div className="rounded-xl border border-dashed border-white/15 p-4 text-sm text-muted-foreground">
-                      No positions yet. Start with a buy order.
+                      No positions yet.
                     </div>
                   )}
                 </div>

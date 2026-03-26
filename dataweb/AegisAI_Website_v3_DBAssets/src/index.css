@@ -55,6 +55,49 @@
     --sidebar-border: 230 15% 18%;
     --sidebar-ring: 30 100% 55%;
   }
+
+  .light {
+    --background: 214 30% 96%;
+    --foreground: 222 47% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 12%;
+
+    --primary: 210 92% 44%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 23% 88%;
+    --secondary-foreground: 222 47% 16%;
+
+    --muted: 214 22% 84%;
+    --muted-foreground: 222 22% 24%;
+
+    --accent: 168 75% 32%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 78% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 24% 72%;
+    --input: 215 24% 82%;
+    --ring: 210 92% 44%;
+
+    --glass-bg: 0 0% 100% / 0.9;
+    --glass-border: 215 20% 50% / 0.38;
+    --glass-shine: 0 0% 100% / 0.2;
+
+    --sidebar-background: 214 30% 96%;
+    --sidebar-foreground: 222 47% 16%;
+    --sidebar-primary: 210 92% 44%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 23% 88%;
+    --sidebar-accent-foreground: 222 47% 16%;
+    --sidebar-border: 215 24% 79%;
+    --sidebar-ring: 210 92% 44%;
+  }
 }
 
 @layer base {
@@ -165,5 +208,19 @@
     @apply h-2 w-2 rounded-full;
     background: hsl(142 70% 50%);
     animation: status-pulse 2s ease-in-out infinite;
+  }
+
+  .light .glass-card {
+    box-shadow: 0 10px 24px -20px hsl(215 35% 35% / 0.5);
+  }
+
+  .light .text-cyan-200,
+  .light .text-cyan-200\/80,
+  .light .text-cyan-100 {
+    color: hsl(198 92% 28%);
+  }
+
+  .light .text-muted-foreground\/50 {
+    color: hsl(222 18% 30%);
   }
 }

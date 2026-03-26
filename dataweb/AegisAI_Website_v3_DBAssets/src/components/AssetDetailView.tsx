@@ -1,6 +1,8 @@
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, TrendingUp, TrendingDown, Clock3, BarChart3, ShieldAlert } from "lucide-react";
 import CandlestickChart, { type Candle } from "./CandlestickChart";
+import { fetchCandles } from "@/lib/marketApi";
 
 interface AssetDetailViewProps {
   asset: {
@@ -20,6 +22,85 @@ interface AssetDetailViewProps {
 }
 
 const AssetDetailView = ({ asset, onClose }: AssetDetailViewProps) => {
+  const [timeframe, setTimeframe] = useState<"1D" | "1W" | "1M" | "3M" | "1Y">("1M");
+  const [allCandles, setAllCandles] = useState<Candle[] | undefined>(asset.candles);
+  const [isLoadingCandles, setIsLoadingCandles] = useState(false);
+  const [hasLiveCandleError, setHasLiveCandleError] = useState(false);
+
+  useEffect(() => {
+    setAllCandles(asset.candles);
+  }, [asset]);
+
+  useEffect(() => {
+    let active = true;
+
+    const hydrateCandles = async () => {
+      setIsLoadingCandles(true);
+      setHasLiveCandleError(false);
+      try {
+        const next = await fetchCandles(asset.symbol, 365);
+        if (active) {
+          setAllCandles(next);
+        }
+      } catch (error) {
+        console.error(`Failed to load candles for ${asset.symbol}`, error);
+        if (active) {
+          setHasLiveCandleError(true);
+        }
+      } finally {
+        if (active) {
+          setIsLoadingCandles(false);
+        }
+      }
+    };
+
+    void hydrateCandles();
+    return () => {
+      active = false;
+    };
+  }, [asset.symbol]);
+
+  const visibleCandles = useMemo(() => {
+    if (!allCandles || allCandles.length === 0) return allCandles;
+
+    const datedCandles = allCandles
+      .map((candle) => {
+        if (!candle.date) return null;
+        const dateObj = new Date(candle.date);
+        if (Number.isNaN(dateObj.getTime())) return null;
+        return { candle, dateObj };
+      })
+      .filter((item): item is { candle: Candle; dateObj: Date } => item !== null);
+
+    if (datedCandles.length === 0) {
+      return [];
+    }
+
+    const end = datedCandles[datedCandles.length - 1].dateObj;
+    const start = new Date(end);
+    if (timeframe === "1D") {
+      start.setDate(end.getDate() - 1);
+    } else if (timeframe === "1W") {
+      start.setDate(end.getDate() - 7);
+    } else if (timeframe === "1M") {
+      start.setMonth(end.getMonth() - 1);
+    } else if (timeframe === "3M") {
+      start.setMonth(end.getMonth() - 3);
+    } else {
+      start.setFullYear(end.getFullYear() - 1);
+    }
+
+    const filtered = datedCandles
+      .filter(({ dateObj }) => dateObj >= start && dateObj <= end)
+      .map(({ candle }) => candle);
+
+    if (filtered.length > 0) {
+      return filtered;
+    }
+
+    return [];
+  }, [allCandles, timeframe]);
+
   return (
     <AnimatePresence>
       <motion.div className="fixed inset-0 z-[100] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -64,24 +145,34 @@ const AssetDetailView = ({ asset, onClose }: AssetDetailViewProps) => {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-1 md:ml-auto">
-                {["1D", "1W", "1M", "3M", "1Y"].map((tf, i) => (
+              <div className="flex flex-wrap items-center gap-1 md:ml-auto">
+                {(["1D", "1W", "1M", "3M", "1Y"] as const).map((tf) => (
                   <button
                     key={tf}
-                    className={`rounded-lg px-2.5 py-1 text-[10px] font-medium transition-colors ${i === 2 ? "text-foreground" : "text-muted-foreground/50 hover:text-muted-foreground"}`}
-                    style={i === 2 ? { background: `${asset.color}20`, color: asset.color } : {}}
+                    type="button"
+                    onClick={() => setTimeframe(tf)}
+                    className={`rounded-lg px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                      timeframe === tf ? "text-foreground" : "text-muted-foreground hover:text-foreground/80"
+                    }`}
+                    style={timeframe === tf ? { background: `${asset.color}20`, color: asset.color } : {}}
                   >
                     {tf}
                   </button>
                 ))}
+                {isLoadingCandles && <span className="ml-1 text-[10px] text-muted-foreground">Loading...</span>}
               </div>
             </div>
 
             <div className="px-4 pb-2 sm:px-5">
               <div className="rounded-[28px] border border-white/10 bg-black/10 p-3 sm:p-4">
                 <div className="h-[220px] sm:h-[280px] md:h-[320px]">
-                  <CandlestickChart color={asset.color} candles={asset.candles} />
+                  <CandlestickChart color={asset.color} candles={visibleCandles} />
                 </div>
+                {hasLiveCandleError && (
+                  <p className="mt-2 text-xs text-red-400">
+                    Live candle API is offline or unreachable at 127.0.0.1:8000.
+                  </p>
+                )}
               </div>
             </div>
 

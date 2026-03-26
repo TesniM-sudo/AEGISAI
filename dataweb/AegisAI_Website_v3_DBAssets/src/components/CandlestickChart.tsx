@@ -15,43 +15,47 @@ interface CandlestickChartProps {
   height?: number;
 }
 
-const generateCandles = (seed: number, count = 40): Candle[] => {
-  const candles: Candle[] = [];
-  let price = seed;
-  for (let i = 0; i < count; i++) {
-    const change = (Math.sin(i * 0.3 + seed * 0.1) * 3 + (Math.random() - 0.5) * 4);
-    const open = price;
-    const close = price + change;
-    const high = Math.max(open, close) + Math.random() * 2;
-    const low = Math.min(open, close) - Math.random() * 2;
-    candles.push({ open, high, low, close });
-    price = close;
-  }
-  return candles;
-};
-
 const CandlestickChart = ({ color, candles: providedCandles, width = 600, height = 300 }: CandlestickChartProps) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const candles = useMemo(
-    () => (providedCandles && providedCandles.length > 1 ? providedCandles : generateCandles(50)),
-    [providedCandles]
-  );
+  const candles = useMemo(() => (providedCandles ? providedCandles : []), [providedCandles]);
+
+  if (!candles.length) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        No candle data available.
+      </div>
+    );
+  }
 
   const allValues = candles.flatMap(c => [c.high, c.low]);
   const min = Math.min(...allValues);
   const max = Math.max(...allValues);
   const range = max - min || 1;
 
-  const candleWidth = (width - 20) / candles.length;
-  const gap = candleWidth * 0.3;
-  const bodyWidth = candleWidth - gap;
+  const plotLeft = 10;
+  const plotRight = width - 10;
+  const plotTop = 20;
+  const plotBottom = height - 20;
+  const plotWidth = plotRight - plotLeft;
 
-  const yScale = (val: number) => height - 20 - ((val - min) / range) * (height - 40);
+  const slotWidth = plotWidth / candles.length;
+  const bodyWidth = Math.max(3, Math.min(14, slotWidth * 0.62));
+
+  const yScale = (val: number) => plotBottom - ((val - min) / range) * (plotBottom - plotTop);
+  const xCenter = (i: number) => plotLeft + i * slotWidth + slotWidth / 2;
 
   // Price levels for grid
   const levels = 5;
   const priceStep = range / levels;
   const hovered = hoveredIndex !== null ? candles[hoveredIndex] : null;
+  const formatMoney = (value: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
+  const formatDate = (value?: string) => {
+    if (!value) return "N/A";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  };
 
   return (
     <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
@@ -69,40 +73,43 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
       {Array.from({ length: levels + 1 }).map((_, i) => {
         const y = yScale(min + i * priceStep);
         return (
-          <line
-            key={i}
-            x1={10}
-            y1={y}
-            x2={width - 10}
-            y2={y}
-            stroke="hsla(0,0%,100%,0.05)"
-            strokeWidth={0.5}
-          />
+          <line key={i} x1={plotLeft} y1={y} x2={plotRight} y2={y} stroke="hsla(0,0%,100%,0.05)" strokeWidth={0.5} />
         );
       })}
 
+      {/* Mouse interaction layer */}
+      <rect
+        x={plotLeft}
+        y={plotTop}
+        width={plotWidth}
+        height={plotBottom - plotTop}
+        fill="transparent"
+        onMouseMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const relX = event.clientX - rect.left;
+          const scale = width / rect.width;
+          const svgX = relX * scale;
+          const idx = Math.max(0, Math.min(candles.length - 1, Math.floor((svgX - plotLeft) / slotWidth)));
+          setHoveredIndex(idx);
+        }}
+        onMouseLeave={() => setHoveredIndex(null)}
+      />
+
       {/* Candles */}
       {candles.map((candle, i) => {
-        const x = 10 + i * candleWidth + gap / 2;
+        const centerX = xCenter(i);
+        const x = centerX - bodyWidth / 2;
         const isGreen = candle.close >= candle.open;
         const bodyTop = yScale(Math.max(candle.open, candle.close));
         const bodyBottom = yScale(Math.min(candle.open, candle.close));
         const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
-        const wickX = x + bodyWidth / 2;
+        const wickX = centerX;
 
         const fillColor = isGreen ? "hsl(142, 70%, 50%)" : "hsl(0, 70%, 55%)";
         const fillOpacity = isGreen ? 0.9 : 0.9;
 
         return (
-          <g
-            key={i}
-            filter="url(#candle-glow)"
-            onMouseEnter={() => setHoveredIndex(i)}
-            onMouseLeave={() => setHoveredIndex(null)}
-          >
-            <title>
-              {`O ${candle.open.toFixed(2)} | H ${candle.high.toFixed(2)} | L ${candle.low.toFixed(2)} | C ${candle.close.toFixed(2)}`}
-            </title>
+          <g key={i} filter="url(#candle-glow)">
             {/* Wick */}
             <line
               x1={wickX}
@@ -131,9 +138,9 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
       {candles.length > 0 && (
         <>
           <line
-            x1={10}
+            x1={plotLeft}
             y1={yScale(candles[candles.length - 1].close)}
-            x2={width - 10}
+            x2={plotRight}
             y2={yScale(candles[candles.length - 1].close)}
             stroke={color}
             strokeWidth={0.5}
@@ -158,10 +165,10 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
       {hovered && hoveredIndex !== null && (
         <>
           <line
-            x1={10 + hoveredIndex * candleWidth + gap / 2 + bodyWidth / 2}
-            y1={20}
-            x2={10 + hoveredIndex * candleWidth + gap / 2 + bodyWidth / 2}
-            y2={height - 20}
+            x1={xCenter(hoveredIndex)}
+            y1={plotTop}
+            x2={xCenter(hoveredIndex)}
+            y2={plotBottom}
             stroke="rgba(255,255,255,0.25)"
             strokeWidth={0.8}
             strokeDasharray="3 4"
@@ -169,20 +176,18 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
           <rect
             x={12}
             y={10}
-            width={220}
-            height={42}
+            width={250}
+            height={54}
             rx={8}
             fill="rgba(15,18,25,0.82)"
             stroke="rgba(255,255,255,0.12)"
           />
           <text x={20} y={27} fill="#E8F7FF" fontSize={10} fontFamily="Inter">
+            {`Worth: ${formatMoney(hovered.close)}  Date: ${formatDate(hovered.date)}`}
+          </text>
+          <text x={20} y={44} fill="rgba(232,247,255,0.72)" fontSize={9} fontFamily="Inter">
             {`O ${hovered.open.toFixed(2)}  H ${hovered.high.toFixed(2)}  L ${hovered.low.toFixed(2)}  C ${hovered.close.toFixed(2)}`}
           </text>
-          {hovered.date && (
-            <text x={20} y={41} fill="rgba(232,247,255,0.7)" fontSize={9} fontFamily="Inter">
-              {hovered.date}
-            </text>
-          )}
         </>
       )}
     </svg>

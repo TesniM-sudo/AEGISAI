@@ -6,6 +6,7 @@ import CryptoCard from "@/components/CryptoCard";
 import AssetDetailView from "@/components/AssetDetailView";
 import { cryptoAssets } from "@/data/cryptoData";
 import { fetchCandles, fetchDashboardAssets, type CandlePoint, type DashboardAsset } from "@/lib/marketApi";
+import ThemeToggle from "@/components/ThemeToggle";
 
 type SelectedAsset = DashboardAsset & { candles?: CandlePoint[] };
 
@@ -44,14 +45,14 @@ const Index = () => {
 
   const openAssetDetails = async (asset: DashboardAsset) => {
     try {
-      const candles = await fetchCandles(asset.symbol);
+      const candles = await fetchCandles(asset.symbol, 365);
       setSelectedAsset({ ...asset, candles });
       return;
     } catch (error) {
       console.error(`Failed to load candles for ${asset.symbol}`, error);
     }
 
-    setSelectedAsset(asset);
+    setSelectedAsset({ ...asset, candles: [] });
   };
 
   if (!featuredAsset) {
@@ -83,13 +84,14 @@ const Index = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <div className="glass-card hidden items-center gap-3 rounded-full px-3 py-2 md:flex">
             <Bot size={14} className="text-cyan-300" />
-            <span className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">AI help in plain language</span>
+            <span className="text-[11px] uppercase tracking-[0.25em] text-foreground/75 dark:text-muted-foreground">AI help in plain language</span>
           </div>
           <Link
             to="/account"
-            className="rounded-full border border-cyan-300/35 bg-cyan-300/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-100 transition hover:bg-cyan-300/20"
+            className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-700 transition hover:bg-cyan-500/20 dark:border-cyan-300/35 dark:bg-cyan-300/10 dark:text-cyan-100"
           >
             Account
           </Link>
@@ -148,7 +150,7 @@ const Index = () => {
                 <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Featured market board</p>
                 <p className="mt-1 text-base font-semibold text-foreground/95">What matters right now</p>
               </div>
-              <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-[11px] font-medium text-cyan-200 sm:text-right">
+              <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-medium text-cyan-700 dark:border-cyan-300/30 dark:bg-cyan-300/10 dark:text-cyan-200 sm:text-right">
                 {isLiveData ? "Live DB data" : "Fallback demo data"}
               </span>
             </div>
