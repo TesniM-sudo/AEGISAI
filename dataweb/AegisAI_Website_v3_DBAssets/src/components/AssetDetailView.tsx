@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, TrendingUp, TrendingDown, Clock3, BarChart3, ShieldAlert } from "lucide-react";
 import CandlestickChart, { type Candle } from "./CandlestickChart";
@@ -170,7 +170,7 @@ const AssetDetailView = ({ asset, onClose }: AssetDetailViewProps) => {
                 </div>
                 {hasLiveCandleError && (
                   <p className="mt-2 text-xs text-red-400">
-                    Live candle API is offline or unreachable at 127.0.0.1:8000.
+                    Live candle API is offline or unreachable at 127.0.0.1:8010.
                   </p>
                 )}
               </div>

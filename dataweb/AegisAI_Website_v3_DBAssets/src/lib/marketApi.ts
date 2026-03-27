@@ -1,4 +1,4 @@
-export interface DashboardAsset {
+﻿export interface DashboardAsset {
   symbol: string;
   name: string;
   balance: string;
@@ -21,7 +21,7 @@ export interface CandlePoint {
   close: number;
 }
 
-const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8000";
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
 
 const formatPrice = (symbol: string, value: number) => {
   if (symbol.includes("=X")) {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 type Msg = { role: "user" | "assistant"; content: string };
 
 const CHAT_URL = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/crypto-chat`
+  ? `${import.meta.env.VITE_SUPABASE_URL}/chat`
   : "";
 
 interface CryptoChatProps {
@@ -20,23 +20,23 @@ const buildLocalReply = (assetName: string, text: string) => {
 
   if (q.includes("risk")) {
     return expert
-      ? `**${assetName} risk view**\n\nCurrent presentation mode suggests a measured risk profile based on recent momentum, broad stability, and confidence scoring. In the real AegisAI build, this panel can be replaced by your backend risk endpoint and chatbot reasoning layer.`
-      : `**${assetName} looks manageable right now.** The idea here is to explain risk in easy words first, then show extra technical detail only when the user asks.`;
+      ? `**${assetName} risk view**\n\nCurrent presentation mode suggests a measured risk profile based on recent momentum, broad stability, and confidence scoring.`
+      : `**${assetName} looks manageable right now.** Risk is explained in simple terms first, then technical detail on request.`;
   }
 
   if (q.includes("why") || q.includes("explain")) {
     return expert
-      ? `**Expert explanation**\n\nThis prototype is shaped for layered communication: concise portfolio narrative, confidence cue, and a deeper technical explanation on demand. That helps beginners stay comfortable while still serving advanced users.`
-      : `**Simple explanation**\n\nThis screen is built to sound clear, not scary. It gives the main idea first, then leaves the heavy finance wording for users who ask for it.`;
+      ? `**Expert explanation**\n\nThis prototype is shaped for layered communication: concise portfolio narrative, confidence cue, and a deeper technical explanation on demand.`
+      : `**Simple explanation**\n\nThis screen is built to sound clear, not scary. It gives the main idea first.`;
   }
 
   if (q.includes("buy") || q.includes("best")) {
-    return `I would present this as **decision support**, not a guaranteed buy signal. A good next step is adding your real scoring and prediction endpoints so the assistant can explain *why* one asset ranks above another.`;
+    return `I would present this as **decision support**, not a guaranteed buy signal.`;
   }
 
   return expert
-    ? `**AegisAI prototype assistant**\n\nThis is a local demo response for ${assetName}. It shows how the website can switch between simple and expert language before you connect the real backend chatbot.`
-    : `I'm in demo mode for **${assetName}**. The layout is ready for a chatbot that speaks simply by default and becomes more technical only when the user asks.`;
+    ? `**AegisAI prototype assistant**\n\nThis is a local demo response for ${assetName}.`
+    : `I'm in demo mode for **${assetName}**. The layout is ready for a chatbot that speaks simply by default.`;
 };
 
 const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
@@ -58,22 +58,10 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
-    let assistantSoFar = "";
-
-    const upsertAssistant = (chunk: string) => {
-      assistantSoFar += chunk;
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant") {
-          return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: assistantSoFar } : m));
-        }
-        return [...prev, { role: "assistant", content: assistantSoFar }];
-      });
-    };
-
-    if (!CHAT_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+    if (!CHAT_URL) {
       setTimeout(() => {
-        upsertAssistant(buildLocalReply(assetName, text));
+        const reply = buildLocalReply(assetName, text);
+        setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
         setIsLoading(false);
       }, 400);
       return;
@@ -84,53 +72,24 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: [...messages, userMsg], asset: assetName }),
+        body: JSON.stringify({ message: text }),
       });
 
-      if (!resp.ok || !resp.body) {
-        const err = await resp.json().catch(() => ({ error: "Request failed" }));
-        upsertAssistant(err.error || "Something went wrong.");
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: "Request failed" }));
+        setMessages((prev) => [...prev, { role: "assistant", content: err.detail || "Something went wrong." }]);
         setIsLoading(false);
         return;
       }
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-      let streamDone = false;
+      const data = await resp.json();
+      const reply = data.reply || "No response from assistant.";
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
 
-      while (!streamDone) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") {
-            streamDone = true;
-            break;
-          }
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) upsertAssistant(content);
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
-          }
-        }
-      }
     } catch (e) {
       console.error(e);
-      upsertAssistant("Connection error. Please try again.");
+      setMessages((prev) => [...prev, { role: "assistant", content: "Connection error. Please try again." }]);
     }
 
     setIsLoading(false);
@@ -144,7 +103,7 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
           <span className="truncate text-xs font-semibold uppercase tracking-widest text-muted-foreground">{assetName} Copilot</span>
         </div>
         <div className="flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-cyan-300">
-          <Sparkles size={10} /> demo
+          <Sparkles size={10} /> live
         </div>
       </div>
 
@@ -153,7 +112,7 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
           <div className="mt-8 text-center text-xs text-muted-foreground/50">
             <Bot size={24} className="mx-auto mb-2 opacity-30" />
             <p>Ask me about {assetName}</p>
-            <p className="mt-1 text-[10px]">Simple by default · Expert detail on request · Backend-ready</p>
+            <p className="mt-1 text-[10px]">Powered by AegisAI Â· Simple by default Â· Expert detail on request</p>
           </div>
         )}
         <AnimatePresence>
