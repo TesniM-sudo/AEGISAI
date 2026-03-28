@@ -4,10 +4,9 @@ import { ArrowLeft } from "lucide-react";
 import { cryptoAssets } from "@/data/cryptoData";
 import CandlestickChart, { type Candle } from "@/components/CandlestickChart";
 import { fetchCandles } from "@/lib/marketApi";
-import { getApiBase } from "@/lib/apiBase";
 
 const SESSION_KEY = "aegis_account_session_v2";
-const API_BASE = getApiBase();
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
 
 type SessionData = {
   email: string;

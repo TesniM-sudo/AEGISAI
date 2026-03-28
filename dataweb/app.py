@@ -69,7 +69,7 @@ class SavePortfolioRequest(BaseModel):
 
 
 def get_starting_cash(role: Role) -> float:
-    return 100000.0 if role == "admin" else 0.0
+    return 100000.0 if role == "admin" else 10000.0
 
 
 def normalize_email(email: str) -> str:

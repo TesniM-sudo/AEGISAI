@@ -22,7 +22,7 @@ export interface CandlePoint {
   volume?: number | null;
 }
 
-const API_BASE = getApiBase();
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
 
 const formatPrice = (symbol: string, value: number) => {
   if (symbol.includes("=X")) {
@@ -85,4 +85,3 @@ export const fetchCandles = async (symbol: string, limit = 60): Promise<CandlePo
   return json.data;
 };
 
-import { getApiBase } from "./apiBase";
