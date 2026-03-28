@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 from pathlib import Path
 from typing import List, Literal
@@ -11,7 +12,7 @@ from config import API_TITLE
 from finance_assistant import FinanceAssistant
 from schemas import ChatRequest, ChatResponse
 
-DB_PATH = Path(__file__).resolve().parent / "aegisai.db"
+DB_PATH = Path(os.getenv("AEGIS_DB_PATH", str(Path(__file__).resolve().parent / "aegisai.db")))
 DEFAULT_ADMIN_EMAIL = "admin@aegisai.com"
 DEFAULT_ADMIN_PASSWORD = "admin123"
 Role = Literal["admin", "user"]
