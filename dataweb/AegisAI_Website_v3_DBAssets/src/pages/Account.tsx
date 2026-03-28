@@ -2,9 +2,10 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { cryptoAssets } from "@/data/cryptoData";
+import { getApiBase } from "@/lib/apiBase";
 
 const SESSION_KEY = "aegis_account_session_v2";
-const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
+const API_BASE = getApiBase();
 
 type Role = "admin" | "user";
 
