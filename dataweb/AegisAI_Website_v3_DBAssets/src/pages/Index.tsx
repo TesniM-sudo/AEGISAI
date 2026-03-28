@@ -109,15 +109,11 @@ const Index = () => {
         >
           <div className="flex flex-col justify-between py-2 md:py-4">
             <div>
-              <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] uppercase tracking-[0.25em] text-muted-foreground sm:text-[11px] sm:tracking-[0.3em]">
-                <Sparkles size={12} className="text-cyan-300" />
-                Clear signals, explained like a real teammate.
-              </div>
               <h1 className="max-w-4xl text-3xl font-semibold leading-[0.95] tracking-tight sm:text-4xl md:text-6xl">
-                AegisAI helps you understand the market without the noise.
+                AegisAI helps you INVEST with CONFIDENCE.
               </h1>
               <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-                Follow your assets, spot risk quickly, and get concise explanations you can actually use.
+                Follow your holdings,spot risks,a comprehensible explanations with OUR Chatbot in ONE place .
               </p>
             </div>
 
