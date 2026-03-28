@@ -74,7 +74,7 @@ const Index = () => {
             <img
               src="/aegisai-logo.png"
               alt="AegisAI mark"
-              className="h-16 w-auto object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.35)] md:h-20"
+              className="h-[80px] w-auto object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.35)] md:h-[96px]"
             />
           </div>
           <div className="min-w-0">
