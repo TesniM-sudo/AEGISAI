@@ -42,7 +42,7 @@ const CryptoCard = ({
   const navigate = useNavigate();
 
   const goToTrade = (side: "buy" | "sell") => {
-    navigate(`/account?symbol=${encodeURIComponent(symbol)}&side=${side}`);
+    navigate(`/trade?symbol=${encodeURIComponent(symbol)}&side=${side}`);
   };
 
   return (

@@ -6,6 +6,7 @@ export interface Candle {
   high: number;
   low: number;
   close: number;
+  volume?: number | null;
 }
 
 interface CandlestickChartProps {
@@ -55,6 +56,16 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  };
+  const formatDateTime = (value?: string) => {
+    if (!value) return "N/A";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString("en-US", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" });
+  };
+  const formatVolume = (value?: number | null) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return "--";
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
   };
 
   return (
@@ -174,19 +185,31 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
             strokeDasharray="3 4"
           />
           <rect
-            x={12}
-            y={10}
-            width={250}
-            height={54}
+            x={width - 176}
+            y={56}
+            width={164}
+            height={126}
             rx={8}
-            fill="rgba(15,18,25,0.82)"
-            stroke="rgba(255,255,255,0.12)"
+            fill="rgba(14,16,22,0.88)"
+            stroke="rgba(255,255,255,0.14)"
           />
-          <text x={20} y={27} fill="#E8F7FF" fontSize={10} fontFamily="Inter">
-            {`Worth: ${formatMoney(hovered.close)}  Date: ${formatDate(hovered.date)}`}
+          <text x={width - 166} y={76} fill="rgba(240,246,255,0.95)" fontSize={9.5} fontFamily="Inter" fontWeight={600}>
+            {`Date: ${formatDateTime(hovered.date)}`}
           </text>
-          <text x={20} y={44} fill="rgba(232,247,255,0.72)" fontSize={9} fontFamily="Inter">
-            {`O ${hovered.open.toFixed(2)}  H ${hovered.high.toFixed(2)}  L ${hovered.low.toFixed(2)}  C ${hovered.close.toFixed(2)}`}
+          <text x={width - 166} y={94} fill="rgba(215,226,241,0.9)" fontSize={9.2} fontFamily="Inter">
+            {`Close:  ${formatMoney(hovered.close)}`}
+          </text>
+          <text x={width - 166} y={110} fill="rgba(215,226,241,0.9)" fontSize={9.2} fontFamily="Inter">
+            {`Open:   ${formatMoney(hovered.open)}`}
+          </text>
+          <text x={width - 166} y={126} fill="rgba(215,226,241,0.9)" fontSize={9.2} fontFamily="Inter">
+            {`High:   ${formatMoney(hovered.high)}`}
+          </text>
+          <text x={width - 166} y={142} fill="rgba(215,226,241,0.9)" fontSize={9.2} fontFamily="Inter">
+            {`Low:    ${formatMoney(hovered.low)}`}
+          </text>
+          <text x={width - 166} y={158} fill="rgba(215,226,241,0.9)" fontSize={9.2} fontFamily="Inter">
+            {`Volume: ${formatVolume(hovered.volume)}`}
           </text>
         </>
       )}

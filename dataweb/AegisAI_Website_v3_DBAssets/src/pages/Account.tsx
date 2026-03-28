@@ -1,22 +1,16 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { cryptoAssets } from "@/data/cryptoData";
 
-const SESSION_KEY = "aegis_account_session_v1";
-const USERS_KEY = "aegis_account_users_v1";
-const PORTFOLIOS_KEY = "aegis_account_portfolios_v1";
-const DEFAULT_ADMIN = { email: "admin@aegisai.com", password: "admin123", role: "admin" as const };
+const SESSION_KEY = "aegis_account_session_v2";
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
 
-type AccountUser = {
-  email: string;
-  password: string;
-  role: "admin" | "user";
-};
+type Role = "admin" | "user";
 
 type SessionData = {
   email: string;
-  role: "admin" | "user";
+  role: Role;
 };
 
 type Holding = {
@@ -32,29 +26,16 @@ type PortfolioState = {
   holdings: Holding[];
 };
 
-type PortfolioMap = Record<string, PortfolioState>;
+type AccountStateResponse = {
+  session: SessionData;
+  portfolio: PortfolioState;
+};
 
 const parseAssetPrice = (rawPrice: string) => Number(rawPrice.replace(/\$/g, "").replace(/,/g, ""));
-
-const loadUsers = (): AccountUser[] => {
-  const raw = localStorage.getItem(USERS_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as AccountUser[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveUsers = (users: AccountUser[]) => {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-};
 
 const loadSession = (): SessionData | null => {
   const raw = localStorage.getItem(SESSION_KEY);
   if (!raw) return null;
-  if (raw === "logged_in") return { email: DEFAULT_ADMIN.email, role: "admin" };
   try {
     const parsed = JSON.parse(raw) as SessionData;
     if (!parsed?.email || !parsed?.role) return null;
@@ -68,124 +49,114 @@ const saveSession = (sessionData: SessionData) => {
   localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
 };
 
-const loadPortfolios = (): PortfolioMap => {
-  const raw = localStorage.getItem(PORTFOLIOS_KEY);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw) as PortfolioMap;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const fetchJson = async <T,>(path: string, init?: RequestInit): Promise<T> => {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  });
+  const payload = (await response.json().catch(() => ({}))) as { detail?: string };
+  if (!response.ok) {
+    throw new Error(payload.detail || "Request failed.");
   }
+  return payload as T;
 };
 
-const savePortfolios = (portfolios: PortfolioMap) => {
-  localStorage.setItem(PORTFOLIOS_KEY, JSON.stringify(portfolios));
-};
+const loginAccount = (email: string, password: string) =>
+  fetchJson<AccountStateResponse>("/account/login", {
+    method: "POST",
+    body: JSON.stringify({ email: normalizeEmail(email), password: password.trim() }),
+  });
 
-const getStartingCash = (role: SessionData["role"]) => (role === "admin" ? 100000 : 10000);
+const registerAccount = (email: string, password: string) =>
+  fetchJson<AccountStateResponse>("/account/register", {
+    method: "POST",
+    body: JSON.stringify({ email: normalizeEmail(email), password: password.trim() }),
+  });
+
+const loadPortfolio = (email: string) =>
+  fetchJson<PortfolioState>(`/account/portfolio?email=${encodeURIComponent(normalizeEmail(email))}`);
 
 const Account = () => {
   const navigate = useNavigate();
+
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [session, setSession] = useState<SessionData | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioState | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState("");
 
   const priceBySymbol = useMemo(() => {
-    return Object.fromEntries(
-      cryptoAssets.map((asset) => [asset.symbol, parseAssetPrice(asset.price)])
-    ) as Record<string, number>;
+    return Object.fromEntries(cryptoAssets.map((asset) => [asset.symbol, parseAssetPrice(asset.price)])) as Record<string, number>;
   }, []);
 
   useEffect(() => {
-    const users = loadUsers();
-    if (!users.find((user) => user.email.toLowerCase() === DEFAULT_ADMIN.email)) {
-      saveUsers([...users, DEFAULT_ADMIN]);
-    }
-
-    const sessionData = loadSession();
-    if (!sessionData) return;
-    setSession(sessionData);
-    setIsLoggedIn(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isLoggedIn || !session) return;
-    const key = session.email.toLowerCase();
-    const allPortfolios = loadPortfolios();
-    const existing = allPortfolios[key];
-    if (existing) {
-      setPortfolio(existing);
-      return;
-    }
-
-    const created: PortfolioState = {
-      startingCash: getStartingCash(session.role),
-      cash: getStartingCash(session.role),
-      holdings: [],
+    const restoreSession = async () => {
+      const sessionData = loadSession();
+      if (!sessionData) return;
+      setSession(sessionData);
+      setIsLoggedIn(true);
+      try {
+        const remotePortfolio = await loadPortfolio(sessionData.email);
+        setPortfolio(remotePortfolio);
+      } catch {
+        localStorage.removeItem(SESSION_KEY);
+        setSession(null);
+        setIsLoggedIn(false);
+      }
     };
-    const nextPortfolios = { ...allPortfolios, [key]: created };
-    savePortfolios(nextPortfolios);
-    setPortfolio(created);
-  }, [isLoggedIn, session]);
+    void restoreSession();
+  }, []);
 
-  const login = (event: FormEvent<HTMLFormElement>) => {
+  const login = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!email.trim() || !password.trim()) {
       setError("Please add both email and password.");
       return;
     }
-
-    const users = loadUsers();
-    const matchedUser = users.find(
-      (user) => user.email.toLowerCase() === email.trim().toLowerCase() && user.password === password
-    );
-    if (!matchedUser) {
-      setError("We couldn't find that account. Try the demo admin or create a new account.");
-      return;
-    }
-
-    const nextSession: SessionData = { email: matchedUser.email, role: matchedUser.role };
+    setIsBusy(true);
     setError("");
-    saveSession(nextSession);
-    setSession(nextSession);
-    setIsLoggedIn(true);
+    try {
+      const response = await loginAccount(email, password);
+      saveSession(response.session);
+      setSession(response.session);
+      setPortfolio(response.portfolio);
+      setIsLoggedIn(true);
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : "Login failed.";
+      setError(message);
+    } finally {
+      setIsBusy(false);
+    }
   };
 
-  const register = (event: FormEvent<HTMLFormElement>) => {
+  const register = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !password.trim()) {
+    if (!email.trim() || !password.trim()) {
       setError("Please add both email and password.");
       return;
     }
-    if (!normalizedEmail.includes("@")) {
-      setError("Please use a valid email address.");
-      return;
-    }
-    if (password.trim().length < 4) {
-      setError("Password should be at least 4 characters long.");
-      return;
-    }
-
-    const users = loadUsers();
-    if (users.find((user) => user.email.toLowerCase() === normalizedEmail)) {
-      setError("That email already exists. Please sign in instead.");
-      return;
-    }
-
-    const newUser: AccountUser = { email: normalizedEmail, password: password.trim(), role: "user" };
-    saveUsers([...users, newUser]);
-
-    const nextSession: SessionData = { email: newUser.email, role: newUser.role };
-    saveSession(nextSession);
-    setSession(nextSession);
+    setIsBusy(true);
     setError("");
-    setIsLoggedIn(true);
+    try {
+      const response = await registerAccount(email, password);
+      saveSession(response.session);
+      setSession(response.session);
+      setPortfolio(response.portfolio);
+      setIsLoggedIn(true);
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : "Account creation failed.";
+      setError(message);
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   const logout = () => {
@@ -194,6 +165,7 @@ const Account = () => {
     setSession(null);
     setPortfolio(null);
     setPassword("");
+    setError("");
   };
 
   const closeModal = () => {
@@ -214,7 +186,7 @@ const Account = () => {
 
   const marketValue = useMemo(() => {
     if (!portfolio) return 0;
-    return portfolio.holdings.reduce((sum, holding) => sum + holding.quantity * priceBySymbol[holding.symbol], 0);
+    return portfolio.holdings.reduce((sum, holding) => sum + holding.quantity * (priceBySymbol[holding.symbol] || 0), 0);
   }, [portfolio, priceBySymbol]);
 
   const invested = useMemo(() => {
@@ -230,86 +202,44 @@ const Account = () => {
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,rgba(49,212,255,0.14),transparent_34%),radial-gradient(circle_at_84%_80%,rgba(122,88,255,0.12),transparent_34%)]" />
-      <button
-        type="button"
-        className="absolute inset-0 z-0 bg-background/70 backdrop-blur-sm"
-        aria-label="Close account popup"
-        onClick={closeModal}
-      />
+      <button type="button" className="absolute inset-0 z-0 bg-background/70 backdrop-blur-sm" aria-label="Close account popup" onClick={closeModal} />
       <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-24 sm:px-6 md:px-10">
         {!isLoggedIn ? (
           <div className="glass-card relative w-full max-w-md rounded-3xl border border-white/20 p-6 shadow-[0_30px_90px_-45px_rgba(0,0,0,0.85)] sm:p-8">
-            <button
-              type="button"
-              onClick={closeModal}
-              className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
-              aria-label="Close account popup"
-            >
+            <button type="button" onClick={closeModal} className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label="Close account popup">
               <X size={16} />
             </button>
             <p className="text-xs uppercase tracking-[0.26em] text-muted-foreground">Account</p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">Welcome back</h1>
             <p className="mt-3 text-sm text-muted-foreground">Sign in or create an account to continue to your dashboard.</p>
+            <Link to="/" className="mt-4 inline-block rounded-xl border border-white/20 bg-white/[0.04] px-3 py-2 text-sm text-foreground transition hover:bg-white/[0.08]">
+              Main menu
+            </Link>
 
             <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode("login");
-                  setError("");
-                }}
-                className={`rounded-lg px-3 py-2 text-sm transition ${authMode === "login" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              >
+              <button type="button" onClick={() => { setAuthMode("login"); setError(""); }} className={`rounded-lg px-3 py-2 text-sm transition ${authMode === "login" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                 Sign in
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode("register");
-                  setError("");
-                }}
-                className={`rounded-lg px-3 py-2 text-sm transition ${authMode === "register" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              >
+              <button type="button" onClick={() => { setAuthMode("register"); setError(""); }} className={`rounded-lg px-3 py-2 text-sm transition ${authMode === "register" ? "bg-white/15 text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                 Create account
               </button>
             </div>
 
             <form onSubmit={authMode === "login" ? login : register} className="mt-6 space-y-4">
               <div>
-                <label htmlFor="email" className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-white/15 bg-white/[0.03] px-3 py-2.5 text-sm text-foreground outline-none focus:border-cyan-300/40"
-                  placeholder="you@aegisai.com"
-                />
+                <label htmlFor="email" className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Email</label>
+                <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full rounded-xl border border-white/15 bg-white/[0.03] px-3 py-2.5 text-sm text-foreground outline-none focus:border-cyan-300/40" placeholder="you@aegisai.com" />
               </div>
 
               <div>
-                <label htmlFor="password" className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-white/15 bg-white/[0.03] px-3 py-2.5 text-sm text-foreground outline-none focus:border-cyan-300/40"
-                  placeholder="Enter password"
-                />
+                <label htmlFor="password" className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Password</label>
+                <input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 w-full rounded-xl border border-white/15 bg-white/[0.03] px-3 py-2.5 text-sm text-foreground outline-none focus:border-cyan-300/40" placeholder="Enter password" />
               </div>
 
               {error && <p className="text-sm text-red-300">{error}</p>}
 
-              <button
-                type="submit"
-                className="w-full rounded-xl border border-cyan-300/35 bg-gradient-to-r from-cyan-300/20 to-cyan-500/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:from-cyan-300/30 hover:to-cyan-500/20"
-              >
-                {authMode === "login" ? "Sign in" : "Create account"}
+              <button type="submit" disabled={isBusy} className="w-full rounded-xl border border-cyan-300/35 bg-gradient-to-r from-cyan-300/20 to-cyan-500/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:from-cyan-300/30 hover:to-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60">
+                {isBusy ? "Please wait..." : authMode === "login" ? "Sign in" : "Create account"}
               </button>
             </form>
 
@@ -321,29 +251,30 @@ const Account = () => {
           </div>
         ) : (
           <div className="glass-card relative w-full max-w-5xl rounded-3xl p-6 sm:p-8">
-            <button
-              type="button"
-              onClick={closeModal}
-              className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
-              aria-label="Close account popup"
-            >
+            <button type="button" onClick={closeModal} className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label="Close account popup">
               <X size={16} />
             </button>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.26em] text-muted-foreground">Admin dashboard</p>
+                <p className="text-xs uppercase tracking-[0.26em] text-muted-foreground">Account dashboard</p>
                 <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">Virtual account</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Signed in as {session?.email ?? "user"} ({session?.role ?? "user"}). Admin starts with $100,000 test balance.
+                  Signed in as {session?.email ?? "user"} ({session?.role ?? "user"}). Portfolio is saved on the backend and loads across devices.
                 </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                  <Link to="/" className="rounded-lg border border-white/20 bg-white/[0.04] px-3 py-1.5 text-foreground transition hover:bg-white/[0.08]">
+                    Main menu
+                  </Link>
+                  <Link to="/trade" className="rounded-lg border border-cyan-300/35 bg-cyan-300/10 px-3 py-1.5 font-medium text-cyan-100 transition hover:bg-cyan-300/20">
+                    Open trade desk
+                  </Link>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={logout}
-                className="rounded-xl border border-white/20 bg-white/[0.04] px-4 py-2 text-sm text-foreground transition hover:bg-white/[0.08]"
-              >
-                Log out
-              </button>
+              <div className="flex items-center gap-2 self-start">
+                <button type="button" onClick={logout} className="rounded-xl border border-white/20 bg-white/[0.04] px-4 py-2 text-sm text-foreground transition hover:bg-white/[0.08]">
+                  Log out
+                </button>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -361,10 +292,7 @@ const Account = () => {
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Profit / loss</p>
-                <p
-                  className="mt-2 text-2xl font-semibold"
-                  style={{ color: totalProfit >= 0 ? "hsl(142 70% 50%)" : "hsl(0 70% 55%)" }}
-                >
+                <p className="mt-2 text-2xl font-semibold" style={{ color: totalProfit >= 0 ? "hsl(142 70% 50%)" : "hsl(0 70% 55%)" }}>
                   {totalProfit >= 0 ? "+" : "-"}${Math.abs(totalProfit).toLocaleString()}
                 </p>
               </div>
@@ -374,7 +302,6 @@ const Account = () => {
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                 <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Account statistics</p>
                 <h2 className="mt-2 text-xl font-semibold text-foreground">Performance snapshot</h2>
-
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Market value</p>
@@ -382,12 +309,9 @@ const Account = () => {
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                     <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Total equity</p>
-                    <p className="mt-2 text-lg font-semibold text-foreground">
-                      ${((portfolio?.cash ?? 0) + marketValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </p>
+                    <p className="mt-2 text-lg font-semibold text-foreground">${((portfolio?.cash ?? 0) + marketValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
                   </div>
                 </div>
-
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -396,29 +320,24 @@ const Account = () => {
                 <div className="mt-4 space-y-2">
                   {portfolio?.holdings.length ? (
                     portfolio.holdings.map((holding) => {
-                      const currentPrice = priceBySymbol[holding.symbol];
+                      const currentPrice = priceBySymbol[holding.symbol] || 0;
                       const pnl = (currentPrice - holding.avgPrice) * holding.quantity;
                       return (
                         <div key={holding.symbol} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
                           <div className="flex items-center justify-between">
                             <p className="text-sm font-semibold text-foreground">{holding.symbol}</p>
-                            <p
-                              className="text-xs font-medium"
-                              style={{ color: pnl >= 0 ? "hsl(142 70% 50%)" : "hsl(0 70% 55%)" }}
-                            >
+                            <p className="text-xs font-medium" style={{ color: pnl >= 0 ? "hsl(142 70% 50%)" : "hsl(0 70% 55%)" }}>
                               {pnl >= 0 ? "+" : "-"}${Math.abs(pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                             </p>
                           </div>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Qty: {holding.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })} • Avg: ${holding.avgPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                            Qty: {holding.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })} - Avg: ${holding.avgPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
                           </p>
                         </div>
                       );
                     })
                   ) : (
-                    <div className="rounded-xl border border-dashed border-white/15 p-4 text-sm text-muted-foreground">
-                      No positions yet.
-                    </div>
+                    <div className="rounded-xl border border-dashed border-white/15 p-4 text-sm text-muted-foreground">No positions yet.</div>
                   )}
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, Bot, Sparkles, ArrowUpRight, BrainCircuit, LineChart } from "lucide-react";
+import { Sparkles, ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import CryptoCard from "@/components/CryptoCard";
 import AssetDetailView from "@/components/AssetDetailView";
@@ -74,7 +74,7 @@ const Index = () => {
             <img
               src="/aegisai-logo.png"
               alt="AegisAI mark"
-              className="h-12 w-10 object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.35)] md:h-14 md:w-12"
+              className="h-16 w-auto object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.35)] md:h-20"
             />
           </div>
           <div className="min-w-0">
@@ -85,10 +85,12 @@ const Index = () => {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <div className="glass-card hidden items-center gap-3 rounded-full px-3 py-2 md:flex">
-            <Bot size={14} className="text-cyan-300" />
-            <span className="text-[11px] uppercase tracking-[0.25em] text-foreground/75 dark:text-muted-foreground">AI help in plain language</span>
-          </div>
+          <Link
+            to="/trade"
+            className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700 transition hover:bg-emerald-500/20 dark:border-emerald-300/35 dark:bg-emerald-300/10 dark:text-emerald-100"
+          >
+            Trade
+          </Link>
           <Link
             to="/account"
             className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-700 transition hover:bg-cyan-500/20 dark:border-cyan-300/35 dark:bg-cyan-300/10 dark:text-cyan-100"
@@ -119,29 +121,6 @@ const Index = () => {
               </p>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="glass-card rounded-2xl p-4">
-                <div className="mb-2 flex items-center gap-2 text-cyan-300">
-                  <ShieldCheck size={14} />
-                  <span className="text-[10px] uppercase tracking-[0.24em]">Trust layer</span>
-                </div>
-                <p className="text-sm leading-6 text-foreground/85">Risk and confidence are always visible first.</p>
-              </div>
-              <div className="glass-card rounded-2xl p-4">
-                <div className="mb-2 flex items-center gap-2 text-violet-300">
-                  <BrainCircuit size={14} />
-                  <span className="text-[10px] uppercase tracking-[0.24em]">AI guidance</span>
-                </div>
-                <p className="text-sm leading-6 text-foreground/85">Start simple, then dive deeper only when you want.</p>
-              </div>
-              <div className="glass-card rounded-2xl p-4">
-                <div className="mb-2 flex items-center gap-2 text-amber-300">
-                  <LineChart size={14} />
-                  <span className="text-[10px] uppercase tracking-[0.24em]">Market view</span>
-                </div>
-                <p className="text-sm leading-6 text-foreground/85">Clean charts and cards that make decisions faster.</p>
-              </div>
-            </div>
           </div>
 
           <div className="glass-card flex flex-col justify-between rounded-[30px] p-4 sm:p-5">

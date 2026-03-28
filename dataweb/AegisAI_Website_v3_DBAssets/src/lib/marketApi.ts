@@ -19,6 +19,7 @@ export interface CandlePoint {
   high: number;
   low: number;
   close: number;
+  volume?: number | null;
 }
 
 const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
