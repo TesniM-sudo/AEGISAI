@@ -2,9 +2,9 @@
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / '.env')
+
 DB_PATH = BASE_DIR / 'aegisai.db'
 DEFAULT_HISTORY_DAYS = 7
 API_TITLE = 'AegisAI Chatbot MVP'

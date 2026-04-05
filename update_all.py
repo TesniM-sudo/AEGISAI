@@ -1,133 +1,140 @@
-"""
-update_all.py
-Run this script every day to keep all 3 tables up to date:
-  1. market_data             ← fetches new prices from Yahoo Finance
-  2. market_data_features    ← recalculates features
-  3. market_risk_predictions ← recalculates risk scores
-"""
-
-import yfinance as yf
 import pandas as pd
-from sqlalchemy.orm import sessionmaker
-from database import engine, MarketData, Base
+from database import engine
 from risk_engine import train_model
-from datetime import datetime, timedelta
+import yfinance as yf
 
-Base.metadata.create_all(engine)
-Session = sessionmaker(bind=engine)
-session = Session()
 
-assets = [
-    ("BTC-USD", "crypto"),
-    ("ETH-USD", "crypto"),
-    ("AAPL",    "stock"),
-    ("TSLA",    "stock"),
-    ("EURUSD=X","forex"),
-]
+# ================================
+# STEP 1: UPDATE market_data
+# ================================
+def update_market_data():
+    print("\n📥 STEP 1: Updating market_data...")
 
-# ─────────────────────────────────────────────
-# STEP 1 — Update market_data
-# ─────────────────────────────────────────────
-print("\n📥 STEP 1: Updating market_data...")
+    symbols = ["BTC-USD", "ETH-USD", "AAPL", "TSLA", "EURUSD=X"]
 
-def update_market_data(symbol, asset_type):
-    last_entry = session.query(MarketData).filter(
-        MarketData.symbol == symbol
-    ).order_by(MarketData.date.desc()).first()
+    for symbol in symbols:
+        try:
+            query = f"""
+                SELECT MAX(date) as last_date
+                FROM market_data
+                WHERE symbol = '{symbol}'
+            """
+            result = pd.read_sql(query, engine)
+            last_date = result.iloc[0]["last_date"]
 
-    start_date = (last_entry.date + timedelta(days=1)) if last_entry else (datetime.now() - timedelta(days=365)).date()
-    end_date   = datetime.now().date()
+            start_date = "2020-01-01" if pd.isna(last_date) else str(last_date)
 
-    if start_date >= end_date:
-        print(f"  {symbol}: Already up to date.")
+            data = yf.download(symbol, start=start_date, progress=False)
+
+            if data.empty:
+                print(f"  {symbol}: Already up to date.")
+                continue
+
+            # 🔥 FIX 1: Flatten MultiIndex columns
+            if isinstance(data.columns, pd.MultiIndex):
+                data.columns = data.columns.get_level_values(0)
+
+            data.reset_index(inplace=True)
+
+            # 🔥 FIX 2: Standardize column names
+            data.rename(columns={
+                "Date": "date",
+                "Close": "close",
+                "Open": "open",
+                "High": "high",
+                "Low": "low",
+                "Volume": "volume"
+            }, inplace=True)
+
+            data["symbol"] = symbol
+
+            # Keep only needed columns
+            data = data[["date", "open", "high", "low", "close", "volume", "symbol"]]
+
+            # Remove duplicates
+            existing = pd.read_sql(
+                f"SELECT date FROM market_data WHERE symbol='{symbol}'",
+                engine
+            )
+            existing_dates = set(existing["date"].astype(str))
+            data["date"] = data["date"].astype(str)
+
+            new_data = data[~data["date"].isin(existing_dates)]
+
+            if new_data.empty:
+                print(f"  {symbol}: 0 new rows inserted, {len(data)} skipped.")
+                continue
+
+            new_data.to_sql("market_data", engine, if_exists="append", index=False)
+
+            print(f"  {symbol}: {len(new_data)} new rows inserted.")
+
+        except Exception as e:
+            print(f"  {symbol}: Error -> {e}")
+
+
+# ================================
+# STEP 2: BUILD FEATURES
+# ================================
+def rebuild_features():
+    print("\n⚙️  STEP 2: Rebuilding market_data_features...")
+
+    df = pd.read_sql("SELECT * FROM market_data", engine)
+
+    if df.empty:
+        print("  No market data found.")
         return
 
-    data = yf.download(symbol, start=start_date.strftime("%Y-%m-%d"),
-                       end=end_date.strftime("%Y-%m-%d"), interval="1d", auto_adjust=True)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values(["symbol", "date"])
 
-    if data.empty:
-        print(f"  {symbol}: No new data available.")
+    # 🔥 FIX: use lowercase column names
+    df["daily_return"] = df.groupby("symbol")["close"].pct_change()
+
+    df["volatility_7d"] = (
+        df.groupby("symbol")["daily_return"]
+        .rolling(7).std()
+        .reset_index(0, drop=True)
+    )
+
+    df["ma_7d"] = (
+        df.groupby("symbol")["close"]
+        .rolling(7).mean()
+        .reset_index(0, drop=True)
+    )
+
+    df["ma_30d"] = (
+        df.groupby("symbol")["close"]
+        .rolling(30).mean()
+        .reset_index(0, drop=True)
+    )
+
+    df.to_sql("market_data_features", engine, if_exists="replace", index=False)
+
+    print(f"  market_data_features rebuilt: {len(df)} rows.")
+
+
+# ================================
+# STEP 3: TRAIN MODEL
+# ================================
+def rebuild_risk_predictions():
+    print("\n🔮 STEP 3: Rebuilding market_risk_predictions...")
+
+    model = train_model()
+
+    if model is None:
+        print("  ⚠️ Model training failed.")
         return
 
-    if isinstance(data.columns, pd.MultiIndex):
-        data.columns = data.columns.get_level_values(0)
-
-    data.reset_index(inplace=True)
-    data.rename(columns={"Datetime": "Date"}, inplace=True)
-    data["symbol"]     = symbol
-    data["asset_type"] = asset_type
-    data.dropna(subset=["Open", "High", "Low", "Close"], inplace=True)
-
-    inserted = skipped = 0
-    for _, row in data.iterrows():
-        date_val = row["Date"]
-        date_val = date_val.to_pydatetime().date() if hasattr(date_val, "to_pydatetime") else date_val.date()
-
-        if session.query(MarketData).filter_by(symbol=symbol, date=date_val).first():
-            skipped += 1
-            continue
-
-        session.add(MarketData(
-            symbol=symbol, date=date_val,
-            open=float(row["Open"]),   high=float(row["High"]),
-            low=float(row["Low"]),     close=float(row["Close"]),
-            volume=float(row["Volume"]) if pd.notna(row["Volume"]) else 0.0,
-            asset_type=asset_type,
-        ))
-        inserted += 1
-
-    session.commit()
-    print(f"  {symbol}: {inserted} new rows inserted, {skipped} skipped.")
-
-for symbol, asset_type in assets:
-    try:
-        update_market_data(symbol, asset_type)
-    except Exception as e:
-        session.rollback()
-        print(f"  ERROR updating {symbol}: {e}")
+    print("  ✅ market_risk_predictions updated.")
 
 
-# ─────────────────────────────────────────────
-# STEP 2 — Rebuild market_data_features
-# ─────────────────────────────────────────────
-print("\n⚙️  STEP 2: Rebuilding market_data_features...")
+# ================================
+# MAIN
+# ================================
+if __name__ == "__main__":
+    update_market_data()
+    rebuild_features()
+    rebuild_risk_predictions()
 
-df = pd.read_sql(session.query(MarketData).statement, session.bind)
-df = df.sort_values(by=["symbol", "date"])
-
-features = []
-for symbol, group in df.groupby("symbol"):
-    group = group.copy()
-    group["daily_return"]  = group["close"].pct_change()
-    group["volatility_7d"] = group["daily_return"].rolling(7).std()
-    group["ma_7d"]         = group["close"].rolling(7).mean()
-    group["ma_30d"]        = group["close"].rolling(30).mean()
-    features.append(group)
-
-df_features = pd.concat(features)
-df_features.to_sql("market_data_features", con=engine, if_exists="replace", index=False)
-print(f"  market_data_features rebuilt: {len(df_features)} rows.")
-
-
-# ─────────────────────────────────────────────
-# STEP 3 — Rebuild market_risk_predictions
-# ─────────────────────────────────────────────
-print("\n🔮 STEP 3: Rebuilding market_risk_predictions...")
-
-df_feat   = pd.read_sql("SELECT * FROM market_data_features", engine)
-feat_cols = df_feat[["daily_return", "volatility_7d"]].dropna()
-
-model          = train_model(feat_cols)
-df_risk        = df_feat.loc[feat_cols.index].copy()
-df_risk["anomaly"]   = model.predict(feat_cols)
-df_risk["risk_flag"] = df_risk["anomaly"].apply(lambda x: 1 if x == -1 else 0)
-
-df_risk.to_sql("market_risk_predictions", engine, if_exists="replace", index=False)
-print(f"  market_risk_predictions rebuilt: {len(df_risk)} rows.")
-
-
-# ─────────────────────────────────────────────
-# DONE
-# ─────────────────────────────────────────────
-print("\n✅ All tables updated successfully!")
-print(f"   Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("\n🚀 All steps completed successfully!")

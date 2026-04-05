@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
-from database import engine, MarketData, Base
+from database import engine, MarketData
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
@@ -13,14 +13,19 @@ from config import API_TITLE
 from finance_assistant import FinanceAssistant
 from schemas import ChatRequest, ChatResponse
 
+# Routes
+from routes import account
+
 # ML imports
 from ml_models import predict_risk, predict_anomaly
 
-# ── App & Session ────────────────────────────────────────────────────────────
-Session = sessionmaker(bind=engine)
-app = FastAPI(title="AegisAI")
-assistant = FinanceAssistant()
+# ── App Initialization ─────────────────────────────────────────────────────────
+app = FastAPI(title="AegisAI")  # ✅ only ONE FastAPI instance
 
+# Include routers
+app.include_router(account.router)  # ✅ account routes included
+
+# CORS Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,7 +34,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Helper ───────────────────────────────────────────────────────────────────
+# ── App & DB Session ───────────────────────────────────────────────────────────
+Session = sessionmaker(bind=engine)
+assistant = FinanceAssistant()
+
+# ── Helper Function ───────────────────────────────────────────────────────────
 def query_table(table_class, symbol=None):
     session = Session()
     query = session.query(table_class)
@@ -39,7 +48,7 @@ def query_table(table_class, symbol=None):
     session.close()
     return df.to_dict(orient="records")
 
-# ── General ──────────────────────────────────────────────────────────────────
+# ── General Endpoints ─────────────────────────────────────────────────────────
 @app.get("/")
 def home():
     return {"message": "AegisAI is running"}
@@ -185,8 +194,7 @@ def price_graph(symbol: str):
         df = pd.read_sql(
             text("""
                 SELECT date, close FROM market_data
-                WHERE symbol = :symbol
-                ORDER BY date ASC
+                WHERE symbol = :symbol ORDER BY date ASC
             """),
             conn,
             params={"symbol": symbol},
@@ -239,6 +247,7 @@ def risk_graph(symbol: str, limit: int = 200):
     buffer.seek(0)
     plt.close()
     return StreamingResponse(buffer, media_type="image/png")
+
 # ── Dashboard Endpoints ──────────────────────────────────────────────────────
 @app.get("/dashboard/assets")
 def dashboard_assets():
@@ -252,7 +261,6 @@ def dashboard_assets():
     assets = []
     with engine.connect() as conn:
         for symbol, meta in SYMBOL_META.items():
-            # latest price
             df = pd.read_sql(text("""
                 SELECT close, date FROM market_data
                 WHERE symbol = :symbol ORDER BY date DESC LIMIT 2
@@ -263,14 +271,12 @@ def dashboard_assets():
             prev_close = float(df.iloc[1]["close"]) if len(df) > 1 else latest_close
             change_pct = ((latest_close - prev_close) / prev_close) * 100 if prev_close else 0
 
-            # spark data (last 14 days)
             spark_df = pd.read_sql(text("""
                 SELECT close FROM market_data
                 WHERE symbol = :symbol ORDER BY date DESC LIMIT 14
             """), conn, params={"symbol": symbol})
             spark_data = list(reversed([float(x) for x in spark_df["close"].tolist()]))
 
-            # risk
             risk_df = pd.read_sql(text("""
                 SELECT risk_flag FROM market_risk_predictions
                 WHERE symbol = :symbol ORDER BY date DESC LIMIT 1
