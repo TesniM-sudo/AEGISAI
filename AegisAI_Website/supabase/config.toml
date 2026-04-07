@@ -1,0 +1,4 @@
+project_id = "ivobcxttdnwdjrvhpwlb"
+
+[functions.crypto-chat]
+verify_jwt = false
