@@ -19,8 +19,7 @@ AegisAI is a full-stack AI application that combines machine learning, a Groq LL
 
 ```
 AEGISAI/
-├── master branch          → Full backend (FastAPI + ML + Chatbot)
-└── datasite branch        → Frontend (React + TypeScript + Vite)
+├── master branch          → Full backend (FastAPI + ML + Chatbot) /Frontend (React + TypeScript + Vite)
 ```
 
 ### Backend (master branch)
@@ -39,7 +38,7 @@ AEGISAI/
 └── run_local.py           → Local server startup
 ```
 
-### Frontend (datasite branch)
+
 ```
 dataweb/AegisAI_Website_v3_DBAssets/
 ├── src/
