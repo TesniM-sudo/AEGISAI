@@ -219,8 +219,6 @@ The chatbot recognizes common names:
 
 - [ ] Portfolio simulation (input your own holdings)
 - [ ] Explainable AI with bullet points and percentages
-- [ ] Premium subscription plans (Free / Pro / Annual)
-- [ ] Full RAG implementation with vector embeddings
 - [ ] Real-time price updates
 - [ ] Mobile-responsive improvements
 
@@ -229,7 +227,8 @@ The chatbot recognizes common names:
 ## 👩‍💻 Authors
 
 - **Tesnim** — Backend, ML pipeline, AI chatbot
-- **Partner** — Frontend design and React components
+- **Anas** — Backend , Frontend
+- **Islem**_Frontend design and React components
 
 ---
 
