@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { cryptoAssets } from "@/data/cryptoData";
 import CandlestickChart, { type Candle } from "@/components/CandlestickChart";
 import { fetchCandles } from "@/lib/marketApi";
+import { loadStoredPortfolio, saveStoredPortfolio, type PortfolioState } from "@/lib/portfolioStorage";
 
 const SESSION_KEY = "aegis_account_session_v2";
 const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
@@ -11,19 +12,6 @@ const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
 type SessionData = {
   email: string;
   role: "admin" | "user";
-};
-
-type Holding = {
-  symbol: string;
-  name: string;
-  quantity: number;
-  avgPrice: number;
-};
-
-type PortfolioState = {
-  startingCash: number;
-  cash: number;
-  holdings: Holding[];
 };
 
 type TradeSide = "buy" | "sell";
@@ -57,14 +45,32 @@ const fetchJson = async <T,>(path: string, init?: RequestInit): Promise<T> => {
   return payload as T;
 };
 
-const loadPortfolio = (email: string) =>
-  fetchJson<PortfolioState>(`/account/portfolio?email=${encodeURIComponent(normalizeEmail(email))}`);
+const loadPortfolio = async (email: string) => {
+  try {
+    const response = await fetchJson<PortfolioState>(`/account/portfolio?email=${encodeURIComponent(normalizeEmail(email))}`);
+    if ("cash" in response && "holdings" in response) {
+      return response;
+    }
+  } catch (error) {
+    console.warn("Backend portfolio endpoint is unavailable, using local portfolio storage.", error);
+  }
+  return loadStoredPortfolio(email);
+};
 
-const savePortfolio = (email: string, portfolio: PortfolioState) =>
-  fetchJson<PortfolioState>("/account/portfolio", {
-    method: "POST",
-    body: JSON.stringify({ email: normalizeEmail(email), portfolio }),
-  });
+const savePortfolio = async (email: string, portfolio: PortfolioState) => {
+  try {
+    const response = await fetchJson<PortfolioState>("/account/portfolio", {
+      method: "POST",
+      body: JSON.stringify({ email: normalizeEmail(email), portfolio }),
+    });
+    if ("cash" in response && "holdings" in response) {
+      return response;
+    }
+  } catch (error) {
+    console.warn("Backend portfolio save is unavailable, storing trade locally.", error);
+  }
+  return saveStoredPortfolio(email, portfolio);
+};
 
 const parseAssetPrice = (rawPrice: string) => Number(rawPrice.replace(/\$/g, "").replace(/,/g, ""));
 
@@ -235,7 +241,11 @@ const Trade = () => {
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,rgba(49,212,255,0.14),transparent_34%),radial-gradient(circle_at_84%_80%,rgba(122,88,255,0.12),transparent_34%)]" />
+      <div className="pointer-events-none absolute inset-0 cyber-grid" />
+      <div className="pointer-events-none absolute left-[10%] top-[10%] h-[400px] w-[400px] glass-orb opacity-[0.08]" />
+      <div className="pointer-events-none absolute right-[10%] bottom-[10%] h-[400px] w-[400px] glass-orb opacity-[0.08] [--primary:270_80%_60%]" />
+      
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,rgba(49,212,255,0.08),transparent_34%),radial-gradient(circle_at_84%_80%,rgba(122,88,255,0.06),transparent_34%)]" />
       <section className="relative z-10 mx-auto max-w-5xl px-4 py-10 sm:px-6 md:px-10">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -250,8 +260,8 @@ const Trade = () => {
           <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{session.email}</p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="glass-card rounded-3xl border border-white/10 p-5 sm:p-6">
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="glass-card premium-border rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl transition-all">
             <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Trade ticket</p>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight text-foreground">Buy and sell assets</h1>
             <form className="mt-6 space-y-4" onSubmit={executeTrade}>
@@ -299,8 +309,8 @@ const Trade = () => {
             </form>
           </div>
 
-          <div className="space-y-4">
-            <div className="glass-card rounded-3xl border border-white/10 p-5 sm:p-6">
+          <div className="flex flex-col gap-6">
+            <div className="glass-card premium-border rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl transition-all">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Selected asset chart</p>
@@ -331,7 +341,7 @@ const Trade = () => {
               </div>
             </div>
 
-            <div className="glass-card rounded-3xl border border-white/10 p-5 sm:p-6">
+            <div className="glass-card premium-border rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl transition-all">
               <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Account status</p>
               <h2 className="mt-2 text-xl font-semibold text-foreground">Portfolio snapshot</h2>
               <div className="mt-4 space-y-2 text-sm">

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import API_TITLE
 from finance_assistant import FinanceAssistant
 from schemas import ChatRequest, ChatResponse
+from routes import account
 
 app = FastAPI(title=API_TITLE)
 assistant = FinanceAssistant()
@@ -15,6 +16,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(account.router)
 
 
 @app.get("/health")

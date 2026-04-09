@@ -22,6 +22,9 @@ export const cryptoAssets = [
     outlook: "Stable large-cap behavior with strong liquidity",
     riskBand: "Low to Medium",
     confidence: "86%",
+    sentiment: "Bullish",
+    volatility: "14.2%",
+    marketCap: "$3.45T",
   },
   {
     symbol: "TSLA",
@@ -36,6 +39,9 @@ export const cryptoAssets = [
     outlook: "Momentum-sensitive and reactive to market news",
     riskBand: "Medium to High",
     confidence: "68%",
+    sentiment: "Neutral",
+    volatility: "38.5%",
+    marketCap: "$582.4B",
   },
   {
     symbol: "BTC-USD",
@@ -50,6 +56,9 @@ export const cryptoAssets = [
     outlook: "High upside potential with wider volatility bands",
     riskBand: "High",
     confidence: "73%",
+    sentiment: "Extreme Greed",
+    volatility: "52.1%",
+    marketCap: "$1.64T",
   },
   {
     symbol: "ETH-USD",
@@ -64,6 +73,9 @@ export const cryptoAssets = [
     outlook: "Strong network narrative with medium-to-high volatility",
     riskBand: "Medium to High",
     confidence: "76%",
+    sentiment: "Bullish",
+    volatility: "44.8%",
+    marketCap: "$492.1B",
   },
   {
     symbol: "EURUSD=X",
@@ -78,5 +90,8 @@ export const cryptoAssets = [
     outlook: "Usually steadier than equities or crypto, useful for balance",
     riskBand: "Low",
     confidence: "84%",
+    sentiment: "Sideways",
+    volatility: "8.4%",
+    marketCap: "N/A",
   },
 ] as const;

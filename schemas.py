@@ -9,8 +9,5 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     intent: str
-    symbols: List[str] = []
-    structured_data: Optional[Dict[str, Any]] = None
-    disclaimer: str = (
-        "Educational project output only. This is not financial advice."
-    )
+    symbols: list
+    structured_data: dict

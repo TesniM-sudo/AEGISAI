@@ -4,6 +4,8 @@ import { Sparkles, ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import CryptoCard from "@/components/CryptoCard";
 import AssetDetailView from "@/components/AssetDetailView";
+import TickerTape from "@/components/TickerTape";
+import BackgroundSparks from "@/components/BackgroundSparks";
 import { cryptoAssets } from "@/data/cryptoData";
 import { fetchCandles, fetchDashboardAssets, type CandlePoint, type DashboardAsset } from "@/lib/marketApi";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -61,10 +63,26 @@ const Index = () => {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(49,212,255,0.14),transparent_26%),radial-gradient(circle_at_78%_18%,rgba(111,73,255,0.14),transparent_28%),radial-gradient(circle_at_bottom,rgba(255,180,80,0.10),transparent_30%)]" />
+      {/* Premium Background Elements */}
+      <div 
+        className="bg-image-overlay"
+        style={{ backgroundImage: 'url("/terminal-bg.png")' }}
+      />
+      <BackgroundSparks />
+      <div className="pointer-events-none absolute inset-0 cyber-grid" />
+      <div className="pointer-events-none fixed inset-0 hud-scanlines opacity-[0.4]" />
+      <div className="pointer-events-none absolute left-[-10%] top-[-10%] h-[600px] w-[600px] glass-orb opacity-[0.15]" />
+      <div className="pointer-events-none absolute right-[-5%] top-[20%] h-[400px] w-[400px] glass-orb opacity-[0.12] [--primary:270_80%_60%]" />
+      <div className="pointer-events-none absolute bottom-[-10%] left-[20%] h-[500px] w-[500px] glass-orb opacity-[0.1] [--primary:140_80%_50%]" />
+      
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(49,212,255,0.08),transparent_40%),radial-gradient(circle_at_bottom,rgba(255,180,80,0.05),transparent_40%)]" />
+
+      <div className="fixed left-0 right-0 top-0 z-[60]">
+        <TickerTape />
+      </div>
 
       <motion.header
-        className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-4 backdrop-blur-md md:px-6 md:py-5"
+        className="fixed left-0 right-0 top-8 z-50 flex items-center justify-between px-4 py-4 backdrop-blur-md md:px-6 md:py-5"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.15 }}
@@ -107,20 +125,58 @@ const Index = () => {
           transition={{ duration: 0.7 }}
           className="mb-10 grid items-stretch gap-6 lg:grid-cols-[1.05fr_0.95fr]"
         >
-          <div className="flex flex-col justify-between py-2 md:py-4">
-            <div>
-              <h1 className="max-w-4xl text-3xl font-semibold leading-[0.95] tracking-tight sm:text-4xl md:text-6xl">
-                AegisAI helps you INVEST with CONFIDENCE.
+          <div className="flex flex-col justify-center py-2 md:py-4">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
+              <h1 className="max-w-4xl text-4xl font-extrabold leading-[1] tracking-tight sm:text-5xl md:text-7xl lg:text-8xl">
+                <span className="text-gradient">Invest with</span>
+                <br />
+                <span className="bg-gradient-to-r from-cyan-400 via-emerald-400 to-indigo-500 bg-clip-text text-transparent">Confidence.</span>
               </h1>
-              <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-                Follow your holdings,spot risks,a comprehensible explanations with OUR Chatbot in ONE place .
+              <p className="mt-6 max-w-xl text-sm leading-relaxed text-muted-foreground/80 md:text-lg">
+                The most intelligent way to track your holdings, identify risks, and get actionable insights with our <span className="text-foreground font-semibold">AI Oracle</span>.
               </p>
-            </div>
+              
+              <div className="mt-8 flex flex-wrap gap-4">
+                <Link
+                  to="/trade"
+                  className="group relative flex items-center gap-2 overflow-hidden rounded-2xl bg-cyan-500 px-8 py-4 text-sm font-bold uppercase tracking-wider text-black transition-all hover:bg-cyan-400 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-background money-glow-emerald"
+                >
+                  <span className="relative z-10">Start Trading</span>
+                  <ArrowUpRight size={18} className="relative z-10 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+                  <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
+                </Link>
+                <button
+                  className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md px-8 py-4 text-sm font-bold uppercase tracking-wider text-foreground hover:bg-white/10 transition-all"
+                >
+                  Learn More
+                </button>
+              </div>
 
+              <div className="mt-10 flex items-center gap-6 border-t border-white/5 pt-8">
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">Active Assets</span>
+                  <span className="text-xl font-bold text-foreground">240+</span>
+                </div>
+                <div className="h-8 w-px bg-white/5" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">Global Volume</span>
+                  <span className="text-xl font-bold text-foreground">$1.2T</span>
+                </div>
+                <div className="h-8 w-px bg-white/5" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">AI Accuracy</span>
+                  <span className="text-xl font-bold text-emerald-400">94.2%</span>
+                </div>
+              </div>
+            </motion.div>
           </div>
 
-          <div className="glass-card flex flex-col justify-between rounded-[30px] p-4 sm:p-5">
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="glass-card premium-border flex flex-col justify-between rounded-[40px] p-6 sm:p-8 animate-float shadow-2xl">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Featured market board</p>
                 <p className="mt-1 text-base font-semibold text-foreground/95">What matters right now</p>
@@ -193,11 +249,11 @@ const Index = () => {
                       <line x1="0" y1="140" x2="360" y2="140" />
                     </g>
                     <path
-                      d={`M 10 128 C 42 124, 58 ${100 - featuredAsset.sparkData[3] * 0.35}, 86 ${104 - featuredAsset.sparkData[6] * 0.34} C 124 ${112 - featuredAsset.sparkData[10] * 0.36}, 160 ${108 - featuredAsset.sparkData[14] * 0.34}, 196 ${95 - featuredAsset.sparkData[18] * 0.34} C 232 ${98 - featuredAsset.sparkData[22] * 0.32}, 270 ${80 - featuredAsset.sparkData[25] * 0.3}, 340 ${72 - featuredAsset.sparkData[29] * 0.3} L 340 170 L 10 170 Z`}
+                      d={`M 10 128 C 42 124, 58 ${100 - (featuredAsset.sparkData[3] || 0) * 0.35}, 86 ${104 - (featuredAsset.sparkData[6] || 0) * 0.34} C 124 ${112 - (featuredAsset.sparkData[10] || 0) * 0.36}, 160 ${108 - (featuredAsset.sparkData[14] || 0) * 0.34}, 196 ${95 - (featuredAsset.sparkData[18] || 0) * 0.34} C 232 ${98 - (featuredAsset.sparkData[22] || 0) * 0.32}, 270 ${80 - (featuredAsset.sparkData[25] || 0) * 0.3}, 340 ${72 - (featuredAsset.sparkData[Math.min(29, featuredAsset.sparkData.length - 1)] || 0) * 0.3} L 340 170 L 10 170 Z`}
                       fill="url(#featuredArea)"
                     />
                     <path
-                      d={`M 10 128 C 42 124, 58 ${100 - featuredAsset.sparkData[3] * 0.35}, 86 ${104 - featuredAsset.sparkData[6] * 0.34} C 124 ${112 - featuredAsset.sparkData[10] * 0.36}, 160 ${108 - featuredAsset.sparkData[14] * 0.34}, 196 ${95 - featuredAsset.sparkData[18] * 0.34} C 232 ${98 - featuredAsset.sparkData[22] * 0.32}, 270 ${80 - featuredAsset.sparkData[25] * 0.3}, 340 ${72 - featuredAsset.sparkData[29] * 0.3}`}
+                      d={`M 10 128 C 42 124, 58 ${100 - (featuredAsset.sparkData[3] || 0) * 0.35}, 86 ${104 - (featuredAsset.sparkData[6] || 0) * 0.34} C 124 ${112 - (featuredAsset.sparkData[10] || 0) * 0.36}, 160 ${108 - (featuredAsset.sparkData[14] || 0) * 0.34}, 196 ${95 - (featuredAsset.sparkData[18] || 0) * 0.34} C 232 ${98 - (featuredAsset.sparkData[22] || 0) * 0.32}, 270 ${80 - (featuredAsset.sparkData[25] || 0) * 0.3}, 340 ${72 - (featuredAsset.sparkData[Math.min(29, featuredAsset.sparkData.length - 1)] || 0) * 0.3}`}
                       fill="none"
                       stroke="url(#featuredLine)"
                       strokeWidth="4"

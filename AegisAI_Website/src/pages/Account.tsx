@@ -2,34 +2,18 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { cryptoAssets } from "@/data/cryptoData";
+import {
+  buildLocalAccountState,
+  loadStoredPortfolio,
+  localLogin,
+  localRegister,
+  type AccountStateResponse,
+  type PortfolioState,
+  type SessionData,
+} from "@/lib/portfolioStorage";
 
 const SESSION_KEY = "aegis_account_session_v2";
 const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
-
-type Role = "admin" | "user";
-
-type SessionData = {
-  email: string;
-  role: Role;
-};
-
-type Holding = {
-  symbol: string;
-  name: string;
-  quantity: number;
-  avgPrice: number;
-};
-
-type PortfolioState = {
-  startingCash: number;
-  cash: number;
-  holdings: Holding[];
-};
-
-type AccountStateResponse = {
-  session: SessionData;
-  portfolio: PortfolioState;
-};
 
 const parseAssetPrice = (rawPrice: string) => Number(rawPrice.replace(/\$/g, "").replace(/,/g, ""));
 
@@ -66,20 +50,47 @@ const fetchJson = async <T,>(path: string, init?: RequestInit): Promise<T> => {
   return payload as T;
 };
 
-const loginAccount = (email: string, password: string) =>
-  fetchJson<AccountStateResponse>("/account/login", {
-    method: "POST",
-    body: JSON.stringify({ email: normalizeEmail(email), password: password.trim() }),
-  });
+const loginAccount = async (email: string, password: string) => {
+  try {
+    const response = await fetchJson<AccountStateResponse>("/account/login", {
+      method: "POST",
+      body: JSON.stringify({ email: normalizeEmail(email), password: password.trim() }),
+    });
+    if ("session" in response && "portfolio" in response) {
+      return response;
+    }
+  } catch (error) {
+    console.warn("Backend login is unavailable, using local account mode.", error);
+  }
+  return localLogin(email);
+};
 
-const registerAccount = (email: string, password: string) =>
-  fetchJson<AccountStateResponse>("/account/register", {
-    method: "POST",
-    body: JSON.stringify({ email: normalizeEmail(email), password: password.trim() }),
-  });
+const registerAccount = async (email: string, password: string) => {
+  try {
+    const response = await fetchJson<AccountStateResponse>("/account/register", {
+      method: "POST",
+      body: JSON.stringify({ email: normalizeEmail(email), password: password.trim() }),
+    });
+    if ("session" in response && "portfolio" in response) {
+      return response;
+    }
+  } catch (error) {
+    console.warn("Backend register is unavailable, using local account mode.", error);
+  }
+  return localRegister(email);
+};
 
-const loadPortfolio = (email: string) =>
-  fetchJson<PortfolioState>(`/account/portfolio?email=${encodeURIComponent(normalizeEmail(email))}`);
+const loadPortfolio = async (email: string) => {
+  try {
+    const response = await fetchJson<PortfolioState>(`/account/portfolio?email=${encodeURIComponent(normalizeEmail(email))}`);
+    if ("cash" in response && "holdings" in response) {
+      return response;
+    }
+  } catch (error) {
+    console.warn("Backend portfolio endpoint is unavailable, using local portfolio storage.", error);
+  }
+  return loadStoredPortfolio(email);
+};
 
 const Account = () => {
   const navigate = useNavigate();
@@ -107,9 +118,10 @@ const Account = () => {
         const remotePortfolio = await loadPortfolio(sessionData.email);
         setPortfolio(remotePortfolio);
       } catch {
-        localStorage.removeItem(SESSION_KEY);
-        setSession(null);
-        setIsLoggedIn(false);
+        const fallback = buildLocalAccountState(sessionData.email);
+        setSession(fallback.session);
+        setPortfolio(fallback.portfolio);
+        setIsLoggedIn(true);
       }
     };
     void restoreSession();
@@ -201,11 +213,15 @@ const Account = () => {
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,rgba(49,212,255,0.14),transparent_34%),radial-gradient(circle_at_84%_80%,rgba(122,88,255,0.12),transparent_34%)]" />
-      <button type="button" className="absolute inset-0 z-0 bg-background/70 backdrop-blur-sm" aria-label="Close account popup" onClick={closeModal} />
+      <div className="pointer-events-none absolute inset-0 cyber-grid" />
+      <div className="pointer-events-none absolute left-[15%] top-[10%] h-[500px] w-[500px] glass-orb opacity-[0.08]" />
+      <div className="pointer-events-none absolute right-[10%] bottom-[15%] h-[400px] w-[400px] glass-orb opacity-[0.08] [--primary:270_80%_60%]" />
+      
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,rgba(49,212,255,0.08),transparent_34%),radial-gradient(circle_at_84%_80%,rgba(122,88,255,0.06),transparent_34%)]" />
+      <button type="button" className="absolute inset-0 z-0 bg-background/40 backdrop-blur-[2px]" aria-label="Close account popup" onClick={closeModal} />
       <section className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-24 sm:px-6 md:px-10">
         {!isLoggedIn ? (
-          <div className="glass-card relative w-full max-w-md rounded-3xl border border-white/20 p-6 shadow-[0_30px_90px_-45px_rgba(0,0,0,0.85)] sm:p-8">
+          <div className="glass-card premium-border relative w-full max-w-md rounded-3xl border border-white/20 p-8 shadow-2xl sm:p-10">
             <button type="button" onClick={closeModal} className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label="Close account popup">
               <X size={16} />
             </button>
@@ -250,7 +266,7 @@ const Account = () => {
             </div>
           </div>
         ) : (
-          <div className="glass-card relative w-full max-w-5xl rounded-3xl p-6 sm:p-8">
+          <div className="glass-card premium-border relative w-full max-w-5xl rounded-[40px] p-8 sm:p-12 shadow-2xl">
             <button type="button" onClick={closeModal} className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label="Close account popup">
               <X size={16} />
             </button>
@@ -259,7 +275,7 @@ const Account = () => {
                 <p className="text-xs uppercase tracking-[0.26em] text-muted-foreground">Account dashboard</p>
                 <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">Virtual account</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Signed in as {session?.email ?? "user"} ({session?.role ?? "user"}). Portfolio is saved on the backend and loads across devices.
+                  Signed in as {session?.email ?? "user"} ({session?.role ?? "user"}). Portfolio uses backend routes when available and local storage as a fallback.
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
                   <Link to="/" className="rounded-lg border border-white/20 bg-white/[0.04] px-3 py-1.5 text-foreground transition hover:bg-white/[0.08]">
