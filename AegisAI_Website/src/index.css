@@ -180,6 +180,104 @@
       0 0 120px -30px hsl(var(--neon-dot) / 0.2);
   }
 
+  /* --- Premium Crypto Enhancements --- */
+
+  .cyber-grid {
+    background-image: 
+      linear-gradient(to right, hsla(var(--primary) / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, hsla(var(--primary) / 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(circle at center, black, transparent 80%);
+  }
+
+  .glass-orb {
+    @apply absolute rounded-full blur-[120px] opacity-20 animate-pulse-glow;
+    background: radial-gradient(circle, hsla(var(--primary) / 0.4), transparent 70%);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-black via-black/80 to-black/40 dark:from-white dark:via-white dark:to-white/40;
+  }
+
+  .premium-border {
+    position: relative;
+  }
+
+  .premium-border::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, hsla(var(--glass-shine)), transparent 50%, hsla(var(--glass-shine)));
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-20px) rotate(2deg); }
+  }
+
+  .animate-float {
+    animation: float 10s ease-in-out infinite;
+  }
+
+  /* --- Investor HUD & Ticker --- */
+
+  .ticker-wrap {
+    @apply flex overflow-hidden whitespace-nowrap border-y border-white/5 bg-black/40 backdrop-blur-sm;
+    height: 32px;
+  }
+
+  .ticker-move {
+    @apply flex items-center gap-12 px-6;
+    animation: ticker 60s linear infinite;
+  }
+
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .hud-scanlines {
+    background: linear-gradient(
+      rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.05) 50%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.03),
+      rgba(0, 255, 0, 0.01),
+      rgba(0, 0, 255, 0.03)
+    );
+    background-size: 100% 3px, 3px 100%;
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .money-glow-emerald {
+    box-shadow: 0 0 40px -10px hsl(142 70% 50% / 0.4), 0 0 80px -20px hsl(142 70% 50% / 0.15);
+  }
+
+  .money-glow-gold {
+    box-shadow: 0 0 40px -10px hsl(45 100% 50% / 0.3), 0 0 80px -20px hsl(45 100% 50% / 0.1);
+  }
+
+  .text-gold {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-600;
+  }
+
+  .profit-flash {
+    animation: profit-flash 1.5s ease-out forwards;
+  }
+
+  @keyframes profit-flash {
+    0% { background-color: hsla(142, 70%, 50%, 0.3); }
+    100% { background-color: transparent; }
+  }
+
   @keyframes pulse-glow {
     0%,
     100% {
@@ -188,6 +286,38 @@
     50% {
       opacity: 1;
     }
+  }
+
+  /* --- Spark Particles & Image Overlay --- */
+
+  .spark-container {
+    @apply pointer-events-none absolute inset-0 overflow-hidden;
+    z-index: 1;
+  }
+
+  .spark {
+    @apply absolute rounded-full bg-white opacity-0;
+    filter: blur(1px) drop-shadow(0 0 4px white);
+    animation: spark-drift 6s ease-in-out infinite;
+  }
+
+  @keyframes spark-drift {
+    0% { transform: translate(0, 0) scale(0); opacity: 0; }
+    20% { opacity: 0.8; }
+    80% { opacity: 0.4; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(1.5); opacity: 0; }
+  }
+
+  .bg-image-overlay {
+    @apply fixed inset-0 z-0 bg-cover bg-center bg-no-repeat;
+    filter: brightness(0.25) saturate(1.2);
+    transform: scale(1.05);
+    transition: transform 10s ease-in-out infinite alternate;
+  }
+
+  .bg-image-overlay::after {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-b from-background/40 via-background/60 to-background/90 dark:from-background/40 dark:via-background/60 dark:to-background/90;
   }
 
   .animate-pulse-glow {
@@ -222,5 +352,15 @@
 
   .light .text-muted-foreground\/50 {
     color: hsl(222 18% 30%);
+  }
+
+  .light .bg-image-overlay {
+    opacity: 0.15;
+    filter: brightness(1) saturate(1);
+  }
+
+  .light .cyber-grid {
+    mask-image: radial-gradient(circle at center, black, transparent 60%);
+    opacity: 0.5;
   }
 }

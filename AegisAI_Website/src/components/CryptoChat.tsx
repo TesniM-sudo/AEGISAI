@@ -1,42 +1,41 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const CHAT_URL = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/chat`
-  : "";
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
+const CHAT_URL = `${API_BASE}/chat`;
 
 interface CryptoChatProps {
   assetName: string;
   color: string;
 }
 
+type ChatResponse = {
+  reply?: string;
+  intent?: string;
+  symbols?: string[];
+  structured_data?: Record<string, unknown>;
+};
+
 const buildLocalReply = (assetName: string, text: string) => {
   const q = text.toLowerCase();
-  const expert = q.includes("expert") || q.includes("technical");
 
   if (q.includes("risk")) {
-    return expert
-      ? `**${assetName} risk view**\n\nCurrent presentation mode suggests a measured risk profile based on recent momentum, broad stability, and confidence scoring.`
-      : `**${assetName} looks manageable right now.** Risk is explained in simple terms first, then technical detail on request.`;
+    return `**${assetName} risk view**\n\nAsk about a symbol like AAPL or BTC-USD to get the latest risk from the backend dataset.`;
   }
 
   if (q.includes("why") || q.includes("explain")) {
-    return expert
-      ? `**Expert explanation**\n\nThis prototype is shaped for layered communication: concise portfolio narrative, confidence cue, and a deeper technical explanation on demand.`
-      : `**Simple explanation**\n\nThis screen is built to sound clear, not scary. It gives the main idea first.`;
+    return `**Simple explanation**\n\nAsk me to explain a finance term like volatility, or ask for the latest risk on a tracked asset.`;
   }
 
   if (q.includes("buy") || q.includes("best")) {
-    return `I would present this as **decision support**, not a guaranteed buy signal.`;
+    return `Use the trade and dashboard pages for market context, then ask the chatbot for a quick explanation of risk or trend.`;
   }
 
-  return expert
-    ? `**AegisAI prototype assistant**\n\nThis is a local demo response for ${assetName}.`
-    : `I'm in demo mode for **${assetName}**. The layout is ready for a chatbot that speaks simply by default.`;
+  return `Ask about tracked assets like **AAPL**, **TSLA**, **BTC-USD**, **ETH-USD**, or **EURUSD=X**.`;
 };
 
 const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
@@ -53,19 +52,11 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
     const text = input.trim();
     if (!text || isLoading) return;
 
+    const enrichedMessage = assetName && assetName !== "AegisAI" ? `${text} about ${assetName}` : text;
     const userMsg: Msg = { role: "user", content: text };
     setInput("");
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
-
-    if (!CHAT_URL) {
-      setTimeout(() => {
-        const reply = buildLocalReply(assetName, text);
-        setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-        setIsLoading(false);
-      }, 400);
-      return;
-    }
 
     try {
       const resp = await fetch(CHAT_URL, {
@@ -73,26 +64,23 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: enrichedMessage }),
       });
 
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ detail: "Request failed" }));
-        setMessages((prev) => [...prev, { role: "assistant", content: err.detail || "Something went wrong." }]);
-        setIsLoading(false);
-        return;
+        throw new Error(`Chat request failed with status ${resp.status}`);
       }
 
-      const data = await resp.json();
-      const reply = data.reply || "No response from assistant.";
+      const data = (await resp.json()) as ChatResponse;
+      const reply = data.reply?.trim() || buildLocalReply(assetName, text);
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-
-    } catch (e) {
-      console.error(e);
-      setMessages((prev) => [...prev, { role: "assistant", content: "Connection error. Please try again." }]);
+    } catch (error) {
+      console.error("Chat API unavailable, using local fallback:", error);
+      const reply = buildLocalReply(assetName, text);
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
@@ -102,8 +90,8 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
           <Bot size={16} style={{ color }} />
           <span className="truncate text-xs font-semibold uppercase tracking-widest text-muted-foreground">{assetName} Copilot</span>
         </div>
-        <div className="flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-cyan-300">
-          <Sparkles size={10} /> live
+        <div className="flex shrink-0 items-center gap-1 rounded-full border border-black/10 bg-black/5 px-2 py-1 text-[10px] text-cyan-500 dark:border-white/10 dark:bg-white/5 dark:text-cyan-300">
+          <Sparkles size={10} /> backend
         </div>
       </div>
 
@@ -112,7 +100,7 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
           <div className="mt-8 text-center text-xs text-muted-foreground/50">
             <Bot size={24} className="mx-auto mb-2 opacity-30" />
             <p>Ask me about {assetName}</p>
-            <p className="mt-1 text-[10px]">Powered by AegisAI Â· Simple by default Â· Expert detail on request</p>
+            <p className="mt-1 text-[10px]">Connected to AegisAI backend chat when available</p>
           </div>
         )}
         <AnimatePresence>
@@ -129,7 +117,7 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
                   <Bot size={10} style={{ color }} />
                 </div>
               )}
-              <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${msg.role === "user" ? "bg-muted text-foreground" : "glass-card"}`}>
+              <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${msg.role === "user" ? "bg-muted text-foreground" : "bg-white border border-black/10 shadow-sm dark:bg-black/20 dark:border-white/10 dark:shadow-none"}`}>
                 {msg.role === "assistant" ? (
                   <div className="prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_p]:text-xs [&_strong]:text-foreground">
                     <ReactMarkdown>{msg.content}</ReactMarkdown>
@@ -151,7 +139,7 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
             <div className="mt-1 flex h-5 w-5 items-center justify-center rounded-full" style={{ background: `${color}22` }}>
               <Bot size={10} style={{ color }} />
             </div>
-            <div className="glass-card rounded-2xl px-3 py-2">
+            <div className="rounded-2xl px-3 py-2 bg-white border border-black/10 shadow-sm dark:bg-black/20 dark:border-white/10 dark:shadow-none">
               <div className="flex gap-1">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-foreground/40" />
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-foreground/40" style={{ animationDelay: "0.15s" }} />
@@ -163,7 +151,7 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
       </div>
 
       <div className="border-t border-border/30 p-3">
-        <div className="glass-card flex items-center gap-2 rounded-xl px-3 py-2">
+        <div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-white border border-black/10 shadow-sm dark:bg-black/20 dark:border-white/10 dark:shadow-none">
           <input
             type="text"
             value={input}

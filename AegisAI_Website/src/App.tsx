@@ -7,8 +7,11 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Account from "./pages/Account";
 import Trade from "./pages/Trade";
+import Contact from "./pages/Contact";
 import ChatLauncher from "@/components/ChatLauncher";
 import { ThemeProvider } from "@/components/theme-provider";
+
+import Layout from "./components/Layout";
 
 const queryClient = new QueryClient();
 
@@ -20,11 +23,14 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/account" element={<Account />} />
-            <Route path="/trade" element={<Trade />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            <Route element={<Layout />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/account" element={<Account />} />
+              <Route path="/trade" element={<Trade />} />
+              <Route path="/contact" element={<Contact />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Route>
           </Routes>
           <ChatLauncher />
         </BrowserRouter>

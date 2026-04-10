@@ -1,9 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cryptoAssets } from "@/data/cryptoData";
 import CandlestickChart, { type Candle } from "@/components/CandlestickChart";
 import { fetchCandles } from "@/lib/marketApi";
+import { loadStoredPortfolio, saveStoredPortfolio, type PortfolioState } from "@/lib/portfolioStorage";
 
 const SESSION_KEY = "aegis_account_session_v2";
 const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
@@ -11,19 +13,6 @@ const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
 type SessionData = {
   email: string;
   role: "admin" | "user";
-};
-
-type Holding = {
-  symbol: string;
-  name: string;
-  quantity: number;
-  avgPrice: number;
-};
-
-type PortfolioState = {
-  startingCash: number;
-  cash: number;
-  holdings: Holding[];
 };
 
 type TradeSide = "buy" | "sell";
@@ -57,14 +46,32 @@ const fetchJson = async <T,>(path: string, init?: RequestInit): Promise<T> => {
   return payload as T;
 };
 
-const loadPortfolio = (email: string) =>
-  fetchJson<PortfolioState>(`/account/portfolio?email=${encodeURIComponent(normalizeEmail(email))}`);
+const loadPortfolio = async (email: string) => {
+  try {
+    const response = await fetchJson<PortfolioState>(`/account/portfolio?email=${encodeURIComponent(normalizeEmail(email))}`);
+    if ("cash" in response && "holdings" in response) {
+      return response;
+    }
+  } catch (error) {
+    console.warn("Backend portfolio endpoint is unavailable, using local portfolio storage.", error);
+  }
+  return loadStoredPortfolio(email);
+};
 
-const savePortfolio = (email: string, portfolio: PortfolioState) =>
-  fetchJson<PortfolioState>("/account/portfolio", {
-    method: "POST",
-    body: JSON.stringify({ email: normalizeEmail(email), portfolio }),
-  });
+const savePortfolio = async (email: string, portfolio: PortfolioState) => {
+  try {
+    const response = await fetchJson<PortfolioState>("/account/portfolio", {
+      method: "POST",
+      body: JSON.stringify({ email: normalizeEmail(email), portfolio }),
+    });
+    if ("cash" in response && "holdings" in response) {
+      return response;
+    }
+  } catch (error) {
+    console.warn("Backend portfolio save is unavailable, storing trade locally.", error);
+  }
+  return saveStoredPortfolio(email, portfolio);
+};
 
 const parseAssetPrice = (rawPrice: string) => Number(rawPrice.replace(/\$/g, "").replace(/,/g, ""));
 
@@ -75,7 +82,7 @@ const Trade = () => {
 
   const [portfolio, setPortfolio] = useState<PortfolioState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedSymbol, setSelectedSymbol] = useState(cryptoAssets[0]?.symbol ?? "AAPL");
+  const [selectedSymbol, setSelectedSymbol] = useState<string>(cryptoAssets[0]?.symbol ?? "AAPL");
   const [side, setSide] = useState<TradeSide>("buy");
   const [quantity, setQuantity] = useState("");
   const [tradeMessage, setTradeMessage] = useState("");
@@ -85,6 +92,7 @@ const Trade = () => {
   const [candles, setCandles] = useState<Candle[]>([]);
   const [isLoadingCandles, setIsLoadingCandles] = useState(false);
   const [candleError, setCandleError] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const priceBySymbol = useMemo(() => {
     return Object.fromEntries(cryptoAssets.map((asset) => [asset.symbol, parseAssetPrice(asset.price)])) as Record<string, number>;
@@ -213,6 +221,7 @@ const Trade = () => {
       setPortfolio(saved);
       setQuantity("");
       setTradeMessage(`${side === "buy" ? "Buy" : "Sell"} order executed and saved.`);
+      setShowSuccessModal(true);
     } catch (error) {
       setTradeError(error instanceof Error ? error.message : "Trade failed.");
     } finally {
@@ -222,36 +231,27 @@ const Trade = () => {
 
   if (!session) {
     return (
-      <main className="relative min-h-screen bg-background px-4 py-20">
-        <div className="mx-auto max-w-xl rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-          <p className="text-sm text-muted-foreground">Please sign in first to open trading.</p>
+      <section className="mx-auto max-w-xl px-4 pt-20">
+        <div className="glass-card rounded-3xl border border-black/10 bg-black/5 p-8 shadow-xl dark:border-white/10 dark:bg-white/[0.03]">
+          <p className="text-lg text-foreground font-semibold mb-2">Please sign in first to open trading.</p>
           <Link to="/account" className="mt-4 inline-block rounded-xl border border-cyan-300/35 bg-cyan-300/10 px-4 py-2 text-sm text-cyan-100">
             Go to account
           </Link>
         </div>
-      </main>
+      </section>
     );
   }
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_14%,rgba(49,212,255,0.14),transparent_34%),radial-gradient(circle_at_84%_80%,rgba(122,88,255,0.12),transparent_34%)]" />
-      <section className="relative z-10 mx-auto max-w-5xl px-4 py-10 sm:px-6 md:px-10">
+    <>
+      <section className="relative z-10 mx-auto max-w-5xl px-4 pt-4 sm:px-6 md:px-10">
         <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => navigate("/account")} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.04] px-3 py-2 text-sm text-foreground hover:bg-white/[0.08]">
-              <ArrowLeft size={14} />
-              Back to account
-            </button>
-            <Link to="/" className="inline-flex items-center rounded-xl border border-white/20 bg-white/[0.04] px-3 py-2 text-sm text-foreground hover:bg-white/[0.08]">
-              Main menu
-            </Link>
-          </div>
+          <div></div>
           <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{session.email}</p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="glass-card rounded-3xl border border-white/10 p-5 sm:p-6">
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="glass-card premium-border rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl transition-all">
             <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Trade ticket</p>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight text-foreground">Buy and sell assets</h1>
             <form className="mt-6 space-y-4" onSubmit={executeTrade}>
@@ -299,8 +299,8 @@ const Trade = () => {
             </form>
           </div>
 
-          <div className="space-y-4">
-            <div className="glass-card rounded-3xl border border-white/10 p-5 sm:p-6">
+          <div className="flex flex-col gap-6">
+            <div className="glass-card premium-border rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl transition-all">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Selected asset chart</p>
@@ -331,7 +331,7 @@ const Trade = () => {
               </div>
             </div>
 
-            <div className="glass-card rounded-3xl border border-white/10 p-5 sm:p-6">
+            <div className="glass-card premium-border rounded-3xl border border-white/10 p-6 sm:p-8 shadow-2xl transition-all">
               <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Account status</p>
               <h2 className="mt-2 text-xl font-semibold text-foreground">Portfolio snapshot</h2>
               <div className="mt-4 space-y-2 text-sm">
@@ -362,7 +362,38 @@ const Trade = () => {
           </div>
         </div>
       </section>
-    </main>
+
+      <AnimatePresence>
+        {showSuccessModal && (
+          <motion.div className="fixed inset-0 z-[200] flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setShowSuccessModal(false)} />
+            <motion.div 
+              className="glass-card relative z-10 flex w-full max-w-sm flex-col items-center justify-center p-8 text-center border-black/10 dark:border-white/10"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
+              <button 
+                onClick={() => setShowSuccessModal(false)}
+                className="absolute right-4 top-4 rounded-full bg-black/5 dark:bg-white/5 p-1 transition hover:bg-black/10 dark:hover:bg-white/10 text-foreground/50 hover:text-foreground"
+              >
+                <X size={16} />
+              </button>
+              <img src="/aegisai-logo.png" alt="AegisAI" className="h-32 w-auto drop-shadow-[0_0_25px_rgba(37,99,235,0.4)] md:h-40 scale-125 mb-4 mt-2 -translate-x-4 md:-translate-x-6" />
+              <h3 className="mt-6 text-xl font-bold tracking-tight text-foreground">Trade Successful!</h3>
+              <p className="mt-2 text-sm text-muted-foreground">Thank you for trusting AegisAI with your portfolio.</p>
+              <button 
+                onClick={() => setShowSuccessModal(false)}
+                className="mt-6 w-full rounded-xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:opacity-90"
+              >
+                Continue Trading
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 

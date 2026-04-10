@@ -69,22 +69,56 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
   };
 
   return (
-    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
+    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet" className="hud-scanlines relative">
       <defs>
-        <filter id="candle-glow">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
+        <filter id="candle-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
+        <linearGradient id="vol-grad-up" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="hsl(142, 70%, 50%)" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="hsl(142, 70%, 50%)" stopOpacity="0.05" />
+        </linearGradient>
+        <linearGradient id="vol-grad-down" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="hsl(0, 70%, 55%)" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="hsl(0, 70%, 55%)" stopOpacity="0.05" />
+        </linearGradient>
       </defs>
 
-      {/* Subtle grid lines */}
+      {/* Technical Grid */}
+      {Array.from({ length: 8 }).map((_, i) => {
+        const x = plotLeft + (i * plotWidth) / 7;
+        return (
+          <line key={`v-${i}`} x1={x} y1={plotTop} x2={x} y2={plotBottom} stroke="hsla(0,0%,100%,0.03)" strokeWidth={1} />
+        );
+      })}
       {Array.from({ length: levels + 1 }).map((_, i) => {
         const y = yScale(min + i * priceStep);
         return (
-          <line key={i} x1={plotLeft} y1={y} x2={plotRight} y2={y} stroke="hsla(0,0%,100%,0.05)" strokeWidth={0.5} />
+          <g key={`h-${i}`}>
+            <line x1={plotLeft} y1={y} x2={plotRight} y2={y} stroke="hsla(0,0%,100%,0.05)" strokeWidth={0.5} />
+            <text x={plotLeft - 4} y={y + 3} fill="hsla(0,0%,100%,0.2)" fontSize={8} textAnchor="end" fontFamily="monospace">
+              {((min + i * priceStep) / 1000).toFixed(1)}k
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Volume Bars */}
+      {candles.map((candle, i) => {
+        const centerX = xCenter(i);
+        const vHeight = candle.volume ? (Math.sqrt(candle.volume) / 500) * (height * 0.15) : 0;
+        const isGreen = candle.close >= candle.open;
+        return (
+          <rect
+            key={`vol-${i}`}
+            x={centerX - bodyWidth / 2.5}
+            y={plotBottom - vHeight}
+            width={bodyWidth / 1.2}
+            height={vHeight}
+            fill={isGreen ? "url(#vol-grad-up)" : "url(#vol-grad-down)"}
+            rx={1}
+          />
         );
       })}
 
@@ -95,6 +129,7 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
         width={plotWidth}
         height={plotBottom - plotTop}
         fill="transparent"
+        className="cursor-crosshair"
         onMouseMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
           const relX = event.clientX - rect.left;
@@ -113,105 +148,105 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
         const isGreen = candle.close >= candle.open;
         const bodyTop = yScale(Math.max(candle.open, candle.close));
         const bodyBottom = yScale(Math.min(candle.open, candle.close));
-        const bodyHeight = Math.max(bodyBottom - bodyTop, 1);
+        const bodyHeight = Math.max(bodyBottom - bodyTop, 1.5);
         const wickX = centerX;
 
         const fillColor = isGreen ? "hsl(142, 70%, 50%)" : "hsl(0, 70%, 55%)";
-        const fillOpacity = isGreen ? 0.9 : 0.9;
 
         return (
-          <g key={i} filter="url(#candle-glow)">
-            {/* Wick */}
+          <g key={i}>
             <line
               x1={wickX}
               y1={yScale(candle.high)}
               x2={wickX}
               y2={yScale(candle.low)}
               stroke={fillColor}
-              strokeWidth={0.8}
-              opacity={0.6}
+              strokeWidth={1}
+              opacity={0.4}
             />
-            {/* Body */}
             <rect
               x={x}
               y={bodyTop}
               width={bodyWidth}
               height={bodyHeight}
               fill={fillColor}
-              opacity={fillOpacity}
-              rx={1}
+              filter={isGreen ? "url(#candle-glow)" : "none"}
+              rx={1.5}
             />
           </g>
         );
       })}
 
-      {/* Current price line */}
+      {/* Current Price Tracker */}
       {candles.length > 0 && (
-        <>
+        <g>
           <line
             x1={plotLeft}
             y1={yScale(candles[candles.length - 1].close)}
             x2={plotRight}
             y2={yScale(candles[candles.length - 1].close)}
             stroke={color}
-            strokeWidth={0.5}
-            strokeDasharray="4 4"
-            opacity={0.5}
+            strokeWidth={1}
+            strokeDasharray="2 4"
+            className="animate-pulse"
+          />
+          <rect
+            x={plotRight + 2}
+            y={yScale(candles[candles.length - 1].close) - 8}
+            width={40}
+            height={16}
+            rx={4}
+            fill={color}
           />
           <text
-            x={width - 12}
-            y={yScale(candles[candles.length - 1].close) - 4}
-            fill={color}
+            x={plotRight + 22}
+            y={yScale(candles[candles.length - 1].close) + 4}
+            fill="black"
             fontSize={9}
-            textAnchor="end"
-            fontFamily="Inter"
-            opacity={0.7}
+            fontWeight="bold"
+            textAnchor="middle"
+            fontFamily="monospace"
           >
-            {candles[candles.length - 1].close.toFixed(2)}
+            {candles[candles.length - 1].close.toFixed(0)}
           </text>
-        </>
+        </g>
       )}
 
-      {/* Hover guide + value panel */}
+      {/* Hover Information Panel */}
       {hovered && hoveredIndex !== null && (
-        <>
+        <g>
           <line
             x1={xCenter(hoveredIndex)}
             y1={plotTop}
             x2={xCenter(hoveredIndex)}
             y2={plotBottom}
-            stroke="rgba(255,255,255,0.25)"
-            strokeWidth={0.8}
-            strokeDasharray="3 4"
+            stroke="rgba(255,255,255,0.4)"
+            strokeWidth={1}
+            strokeDasharray="4 4"
           />
-          <rect
-            x={width - 176}
-            y={56}
-            width={164}
-            height={126}
-            rx={8}
-            fill="rgba(14,16,22,0.88)"
-            stroke="rgba(255,255,255,0.14)"
-          />
-          <text x={width - 166} y={76} fill="rgba(240,246,255,0.95)" fontSize={9.5} fontFamily="Inter" fontWeight={600}>
-            {`Date: ${formatDateTime(hovered.date)}`}
-          </text>
-          <text x={width - 166} y={94} fill="rgba(215,226,241,0.9)" fontSize={9.2} fontFamily="Inter">
-            {`Close:  ${formatMoney(hovered.close)}`}
-          </text>
-          <text x={width - 166} y={110} fill="rgba(215,226,241,0.9)" fontSize={9.2} fontFamily="Inter">
-            {`Open:   ${formatMoney(hovered.open)}`}
-          </text>
-          <text x={width - 166} y={126} fill="rgba(215,226,241,0.9)" fontSize={9.2} fontFamily="Inter">
-            {`High:   ${formatMoney(hovered.high)}`}
-          </text>
-          <text x={width - 166} y={142} fill="rgba(215,226,241,0.9)" fontSize={9.2} fontFamily="Inter">
-            {`Low:    ${formatMoney(hovered.low)}`}
-          </text>
-          <text x={width - 166} y={158} fill="rgba(215,226,241,0.9)" fontSize={9.2} fontFamily="Inter">
-            {`Volume: ${formatVolume(hovered.volume)}`}
-          </text>
-        </>
+          <foreignObject x={width - 180} y={20} width={160} height={140}>
+            <div className="rounded-xl border border-white/10 bg-black/90 p-3 shadow-2xl backdrop-blur-xl">
+              <div className="mb-2 flex items-center justify-between border-b border-white/5 pb-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{formatDateTime(hovered.date)}</span>
+                <span className={`text-[10px] font-bold ${hovered.close >= hovered.open ? "text-emerald-400" : "text-rose-500"}`}>
+                  {hovered.close >= hovered.open ? "BUY" : "SELL"}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-y-1.5 text-[11px] font-mono">
+                <span className="text-muted-foreground">PRICE</span>
+                <span className="text-right text-foreground font-bold">{formatMoney(hovered.close)}</span>
+                <span className="text-muted-foreground">OPEN</span>
+                <span className="text-right text-foreground/80">{formatMoney(hovered.open)}</span>
+                <span className="text-muted-foreground">HIGH</span>
+                <span className="text-right text-emerald-400">{formatMoney(hovered.high)}</span>
+                <span className="text-muted-foreground">LOW</span>
+                <span className="text-right text-rose-400">{formatMoney(hovered.low)}</span>
+                <span className="text-muted-foreground">VOLUME</span>
+                <span className="text-right text-cyan-400">{formatVolume(hovered.volume)}</span>
+              </div>
+            </div>
+          </foreignObject>
+        </g>
       )}
     </svg>
   );

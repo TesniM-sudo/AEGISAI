@@ -1,0 +1,24 @@
+{
+  "accounts": {
+    "test@aegisai.com": {
+      "email": "test@aegisai.com",
+      "password": "admin123",
+      "role": "user",
+      "portfolio": {
+        "startingCash": 100000,
+        "cash": 100000,
+        "holdings": []
+      }
+    },
+    "admin@aegisai.com": {
+      "email": "admin@aegisai.com",
+      "password": "admin123",
+      "role": "admin",
+      "portfolio": {
+        "startingCash": 100000.0,
+        "cash": 99999.0,
+        "holdings": []
+      }
+    }
+  }
+}

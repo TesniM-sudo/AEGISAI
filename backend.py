@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
@@ -6,30 +7,67 @@ from database import engine, MarketData, Base
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
+import math
 
-# Import ML functions
+# Chatbot
+from finance_assistant import FinanceAssistant
+from schemas import ChatRequest, ChatResponse
+
+# ML imports
 from ml_models import predict_risk, predict_anomaly
 
-# ── App & Session ─────────────────────────────────────────────────────────────
+# ── App Initialization ─────────────────────────────────────────────────────────
+app = FastAPI(title="AegisAI Backend")  # single FastAPI instance
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ── DB Session ────────────────────────────────────────────────────────────────
 Session = sessionmaker(bind=engine)
-app = FastAPI(title="AegisAI Backend")  # only ONE app instance
+assistant = FinanceAssistant()  # chatbot instance
 
-# ── Helper ────────────────────────────────────────────────────────────────────
+# ── Helper Function ───────────────────────────────────────────────────────────
+def sanitize_records(records):
+    cleaned = []
+    for record in records:
+        cleaned.append({
+            key: (None if isinstance(value, float) and not math.isfinite(value) else value)
+            for key, value in record.items()
+        })
+    return cleaned
+
+
 def query_table(table_class, symbol=None):
-    session = Session()
-    query = session.query(table_class)
-    if symbol:
-        query = query.filter(table_class.symbol == symbol)
-    df = pd.read_sql(query.statement, session.bind)
-    session.close()
-    return df.to_dict(orient="records")
+    with Session() as session:
+        query = session.query(table_class)
+        if symbol:
+            query = query.filter(table_class.symbol == symbol)
+        df = pd.read_sql(query.statement, session.bind)
+    return sanitize_records(df.to_dict(orient="records"))
 
-# ── General ───────────────────────────────────────────────────────────────────
+# ── General Endpoints ─────────────────────────────────────────────────────────
 @app.get("/")
 def home():
     return {"message": "AegisAI is running"}
 
-# ── Market Data ───────────────────────────────────────────────────────────────
+# ── Chatbot Endpoint ──────────────────────────────────────────────────────────
+@app.post("/chat", response_model=ChatResponse)
+def chat(request: ChatRequest):
+    reply, intent, symbols, structured = assistant.handle_message(request.message)
+    return ChatResponse(
+        reply=reply,
+        intent=intent,
+        symbols=symbols,
+        structured_data=structured
+    )
+
+# ── Market Data Endpoints ─────────────────────────────────────────────────────
 @app.get("/get-data")
 def get_data(symbol: str = None):
     data = query_table(MarketData, symbol)
@@ -39,9 +77,8 @@ def get_data(symbol: str = None):
 
 @app.get("/get-features")
 def get_features(symbol: str = None):
-    session = Session()
-    df = pd.read_sql("SELECT * FROM market_data_features", session.bind)
-    session.close()
+    with Session() as session:
+        df = pd.read_sql("SELECT * FROM market_data_features", session.bind)
     if symbol:
         df = df[df["symbol"] == symbol]
     if df.empty:
@@ -144,16 +181,12 @@ def predict(data: dict):
         "anomaly_detection": anomaly
     }
 
-# ── Graphs ────────────────────────────────────────────────────────────────────
+# ── Graph Endpoints ──────────────────────────────────────────────────────────
 @app.get("/graph/price")
 def price_graph(symbol: str):
     with engine.connect() as conn:
         df = pd.read_sql(
-            text("""
-                SELECT date, close FROM market_data
-                WHERE symbol = :symbol
-                ORDER BY date ASC
-            """),
+            text("SELECT date, close FROM market_data WHERE symbol = :symbol ORDER BY date ASC"),
             conn,
             params={"symbol": symbol},
         )
@@ -179,12 +212,7 @@ def price_graph(symbol: str):
 def risk_graph(symbol: str, limit: int = 200):
     with engine.connect() as conn:
         df = pd.read_sql(
-            text("""
-                SELECT date, risk_score FROM market_risk_predictions
-                WHERE symbol = :symbol
-                ORDER BY date ASC
-                LIMIT :limit
-            """),
+            text("SELECT date, risk_score FROM market_risk_predictions WHERE symbol = :symbol ORDER BY date ASC LIMIT :limit"),
             conn,
             params={"symbol": symbol, "limit": limit},
         )
