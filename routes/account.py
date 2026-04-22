@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from pathlib import Path
 from threading import Lock
 from typing import Literal
@@ -75,6 +76,15 @@ def _read_store() -> dict:
 
 def _write_store(store: dict) -> None:
     STORE_PATH.write_text(json.dumps(store, indent=2), encoding="utf-8")
+
+
+def get_account_record(email: str) -> dict | None:
+    """Return a stored account snapshot without creating a new one."""
+    normalized_email = _normalize_email(email)
+    with STORE_LOCK:
+        store = _read_store()
+        account = store.get("accounts", {}).get(normalized_email)
+        return deepcopy(account) if account else None
 
 
 def _ensure_account(email: str, password: str | None = None) -> dict:

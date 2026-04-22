@@ -31,7 +31,7 @@ class AegisDB:
         with self._connect() as conn:
             row = conn.execute(
                 """
-                SELECT symbol, date, close, anomaly, risk_flag, volatility_7d, ma_7d, ma_30d
+                SELECT symbol, date, close, anomaly, risk_flag, risk_score, volatility_7d, ma_7d, ma_30d
                 FROM market_risk_predictions
                 WHERE UPPER(symbol) = UPPER(?)
                 ORDER BY date DESC

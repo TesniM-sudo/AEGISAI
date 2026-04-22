@@ -1,17 +1,21 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from contextlib import asynccontextmanager
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 from database import engine, MarketData
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
+import math
 
 # Chatbot imports
 from config import API_TITLE
 from finance_assistant import FinanceAssistant
-from schemas import ChatRequest, ChatResponse
+from schemas import ChatRequest, ChatResponse, PredictRequest
+from services.notification_service import notify_user
+from services import auto_update_service
 
 # Routes
 from routes import account
@@ -20,7 +24,14 @@ from routes import account
 from ml_models import predict_risk, predict_anomaly
 
 # ── App Initialization ─────────────────────────────────────────────────────────
-app = FastAPI(title="AegisAI")  # ✅ only ONE FastAPI instance
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    auto_update_service.start()
+    yield
+    auto_update_service.stop()
+
+
+app = FastAPI(title="AegisAI", lifespan=lifespan)  # ✅ only ONE FastAPI instance
 
 # Include routers
 app.include_router(account.router)  # ✅ account routes included
@@ -38,6 +49,16 @@ app.add_middleware(
 Session = sessionmaker(bind=engine)
 assistant = FinanceAssistant()
 
+
+def sanitize_records(records):
+    cleaned = []
+    for record in records:
+        cleaned.append({
+            key: (None if isinstance(value, float) and not math.isfinite(value) else value)
+            for key, value in record.items()
+        })
+    return cleaned
+
 # ── Helper Function ───────────────────────────────────────────────────────────
 def query_table(table_class, symbol=None):
     session = Session()
@@ -46,7 +67,7 @@ def query_table(table_class, symbol=None):
         query = query.filter(table_class.symbol == symbol)
     df = pd.read_sql(query.statement, session.bind)
     session.close()
-    return df.to_dict(orient="records")
+    return sanitize_records(df.to_dict(orient="records"))
 
 # ── General Endpoints ─────────────────────────────────────────────────────────
 @app.get("/")
@@ -61,10 +82,23 @@ def health():
         "supported_symbols": len(assistant.available_symbols),
     }
 
+
+@app.get("/admin/update/status")
+def admin_update_status():
+    return auto_update_service.get_status()
+
+
+@app.post("/admin/update/run")
+def admin_update_run(background: bool = True):
+    if background:
+        return auto_update_service.trigger_update_background()
+    return auto_update_service.run_update_once()
+
 # ── Chatbot ──────────────────────────────────────────────────────────────────
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
-    reply, intent, symbols, structured = assistant.handle_message(request.message)
+    """Return a rule-based chatbot response with optional user context."""
+    reply, intent, symbols, structured = assistant.handle_message(request.message, request.user_id)
     return ChatResponse(
         reply=reply,
         intent=intent,
@@ -89,7 +123,7 @@ def get_features(symbol: str = None):
         df = df[df["symbol"] == symbol]
     if df.empty:
         raise HTTPException(status_code=404, detail="Features not found")
-    return {"data": df.to_dict(orient="records")}
+    return {"data": sanitize_records(df.to_dict(orient="records"))}
 
 # ── Risk Endpoints ───────────────────────────────────────────────────────────
 @app.get("/risk/latest")
@@ -107,7 +141,7 @@ def risk_latest(symbol: str):
         )
     if df.empty:
         raise HTTPException(status_code=404, detail="No risk prediction found for this symbol.")
-    return {"data": df.to_dict(orient="records")[0]}
+    return {"data": sanitize_records(df.to_dict(orient="records"))[0]}
 
 @app.get("/risk/history")
 def risk_history(symbol: str, limit: int = 200):
@@ -124,7 +158,7 @@ def risk_history(symbol: str, limit: int = 200):
         )
     if df.empty:
         raise HTTPException(status_code=404, detail="No risk history found for this symbol.")
-    return {"data": df.to_dict(orient="records")}
+    return {"data": sanitize_records(df.to_dict(orient="records"))}
 
 @app.get("/risk/all")
 def risk_all():
@@ -143,7 +177,7 @@ def risk_all():
         )
     if df.empty:
         raise HTTPException(status_code=404, detail="No risk data available.")
-    return {"data": df.to_dict(orient="records")}
+    return {"data": sanitize_records(df.to_dict(orient="records"))}
 
 @app.get("/risk/summary")
 def risk_summary(symbol: str):
@@ -165,26 +199,32 @@ def risk_summary(symbol: str):
         )
     if df.empty:
         raise HTTPException(status_code=404, detail="No summary found for this symbol.")
-    return {"summary": df.to_dict(orient="records")[0]}
+    return {"summary": sanitize_records(df.to_dict(orient="records"))[0]}
 
 # ── Predict (ML models) ──────────────────────────────────────────────────────
 @app.post("/predict")
-def predict(data: dict):
-    try:
-        features = [
-            data["amount"],
-            data["transactions_per_day"],
-            data["account_age_days"]
-        ]
-    except KeyError as e:
-        raise HTTPException(status_code=422, detail=f"Missing field: {e}")
-
+def predict(data: PredictRequest):
+    """Predict account risk and notify the user when the result is high."""
+    features = [
+        data.amount,
+        data.transactions_per_day,
+        data.account_age_days,
+    ]
     risk = predict_risk(features)
     anomaly = predict_anomaly(features)
+    notification_sent = False
+
+    if int(risk) == 1 and data.user_id:
+        # UPDATED: Email notification added
+        notification_sent = notify_user(
+            data.user_id,
+            "⚠️ High financial risk detected: unusual spending pattern in last 24h",
+        )
 
     return {
         "risk_prediction": risk,
-        "anomaly_detection": anomaly
+        "anomaly_detection": anomaly,
+        "notification_sent": notification_sent,
     }
 
 # ── Graphs ───────────────────────────────────────────────────────────────────
@@ -310,4 +350,4 @@ def dashboard_candles(symbol: str, limit: int = 60):
     if df.empty:
         raise HTTPException(status_code=404, detail="No candle data found.")
     df = df.iloc[::-1].reset_index(drop=True)
-    return {"data": df.to_dict(orient="records")}
+    return {"data": sanitize_records(df.to_dict(orient="records"))}

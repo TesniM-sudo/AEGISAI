@@ -1,7 +1,6 @@
 import pandas as pd
 from sqlalchemy.orm import sessionmaker
 from database import engine, MarketData
-from datetime import datetime
 
 Session = sessionmaker(bind=engine)
 session = Session()

@@ -16,8 +16,15 @@
       "role": "admin",
       "portfolio": {
         "startingCash": 100000.0,
-        "cash": 99999.0,
-        "holdings": []
+        "cash": 99998.763698,
+        "holdings": [
+          {
+            "symbol": "AAPL",
+            "name": "Apple",
+            "quantity": 0.0011,
+            "avgPrice": 214.82
+          }
+        ]
       }
     }
   }

@@ -31,3 +31,19 @@ def test_explain_term():
     assert response.status_code == 200
     data = response.json()
     assert data["intent"] == "explain_term"
+
+
+def test_contextual_risk_response():
+    response = client.post("/chat", json={"user_id": "admin@aegisai.com", "message": "What is my risk right now?"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intent"] == "portfolio_risk"
+    assert "portfolio risk" in data["reply"].lower()
+
+
+def test_contextual_advice_response():
+    response = client.post("/chat", json={"user_id": "admin@aegisai.com", "message": "Give me advice for my spending."})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intent"] == "portfolio_advice"
+    assert data["reply"]

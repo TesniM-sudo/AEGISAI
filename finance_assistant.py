@@ -1,13 +1,9 @@
 import math
 import re
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
-from groq import Groq
-
-from config import DEFAULT_HISTORY_DAYS, GROQ_API_KEY, GROQ_MODEL
 from db_tools import AegisDB
-
-client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+from routes.account import get_account_record
 
 FINANCE_EXPLANATIONS = {
     "volatility": "Volatility means how much a price moves up and down. Higher volatility means the asset is less stable in the short term.",
@@ -16,8 +12,12 @@ FINANCE_EXPLANATIONS = {
     "daily return": "Daily return is the percentage change in price from one day to the next.",
 }
 
+ADVICE_KEYWORDS = ("advice", "suggest", "recommend", "improve", "what should i do", "spending")
+
 
 class FinanceAssistant:
+    """Rule-based assistant grounded in stored account data and latest risk results."""
+
     def __init__(self, db: AegisDB | None = None):
         self.db = db or AegisDB()
         self.available_symbols = self.db.list_symbols()
@@ -34,9 +34,11 @@ class FinanceAssistant:
         }
 
     def refresh_symbols(self) -> None:
+        """Refresh the supported symbols from the database."""
         self.available_symbols = self.db.list_symbols()
 
     def detect_symbols(self, message: str) -> List[str]:
+        """Extract supported asset symbols from a message."""
         message_upper = message.upper()
         message_lower = message.lower()
         found = [symbol for symbol in self.available_symbols if symbol.upper() in message_upper]
@@ -51,20 +53,55 @@ class FinanceAssistant:
         match = re.search(r"(\d+)\s*day", message.lower())
         if match:
             return max(2, min(30, int(match.group(1))))
-        return DEFAULT_HISTORY_DAYS
+        return 7
 
-    def _clean_value(self, value):
+    def _clean_value(self, value: Any) -> Any:
         if isinstance(value, float) and not math.isfinite(value):
             return None
         return value
 
-    def _clean_record(self, record: Dict | None) -> Dict:
+    def _clean_record(self, record: Dict[str, Any] | None) -> Dict[str, Any]:
         if not record:
             return {}
         return {key: self._clean_value(value) for key, value in record.items()}
 
-    def _intent_from_message(self, message: str, symbols: List[str]) -> str:
+    def _symbol_display_name(self, symbol: str) -> str:
+        reverse_aliases = {
+            "AAPL": "Apple",
+            "TSLA": "Tesla",
+            "BTC-USD": "Bitcoin",
+            "ETH-USD": "Ethereum",
+            "EURUSD=X": "EUR/USD",
+        }
+        return reverse_aliases.get(symbol, symbol)
+
+    def _trend_label(self, symbol: str, message: str) -> str:
+        recent_prices = list(reversed(self.db.get_recent_prices(symbol, self._extract_days(message))))
+        if len(recent_prices) >= 2:
+            first = float(recent_prices[0]["close"])
+            last = float(recent_prices[-1]["close"])
+            if last > first:
+                return "up"
+            if last < first:
+                return "down"
+        return "steady"
+
+    def _extract_budget(self, message: str) -> float | None:
+        match = re.search(r"\$?\s*(\d+(?:\.\d+)?)", message.replace(",", ""))
+        if not match:
+            return None
+        try:
+            value = float(match.group(1))
+        except ValueError:
+            return None
+        return value if value > 0 else None
+
+    def _intent_from_message(self, message: str, symbols: List[str], user_id: str | None) -> str:
         lowered = message.lower()
+        if user_id and any(keyword in lowered for keyword in ADVICE_KEYWORDS):
+            return "portfolio_advice"
+        if user_id and "risk" in lowered and not symbols:
+            return "portfolio_risk"
         if "list supported symbols" in lowered or ("list" in lowered and "symbol" in lowered):
             return "list_symbols"
         if any(word in lowered for word in ["compare", "versus", "vs"]) and len(symbols) >= 2:
@@ -83,90 +120,123 @@ class FinanceAssistant:
             if len(symbols) >= 2:
                 return "compare_assets"
             return "latest_risk"
-        return "llm_response"
+        return "general_help"
 
-    def _build_context(self, message: str, symbols: List[str]) -> str:
-        context = """You are AegisAI, a friendly financial guide for beginners.
+    def _build_user_snapshot(self, user_id: str) -> Dict[str, Any]:
+        """Build a lightweight user context from portfolio data and latest risk rows."""
+        account = get_account_record(user_id)
+        if not account:
+            return {}
 
-Your personality:
-- Simple, clear, and helpful
-- Never technical or complicated
+        portfolio = account.get("portfolio", {})
+        holdings = portfolio.get("holdings", [])
+        starting_cash = float(portfolio.get("startingCash", 0) or 0)
+        cash = float(portfolio.get("cash", 0) or 0)
+        spent_amount = max(starting_cash - cash, 0.0)
+        spent_ratio = (spent_amount / starting_cash) if starting_cash else 0.0
 
-Your rules:
-- Translate all technical data into plain English
-- Focus only on: risk (safe or risky) and trend (up or down)
-- If needed, give ONE short beginner tip
-- Keep responses very short: maximum 2 sentences
-- Do not include disclaimers
-"""
+        holding_details: List[Dict[str, Any]] = []
+        total_market_value = 0.0
+        high_risk_count = 0
 
-        if not symbols:
-            context += f"\nAvailable symbols: {', '.join(self.available_symbols[:10])}"
-            return context
-
-        for symbol in symbols:
+        for holding in holdings:
+            symbol = holding.get("symbol", "")
             risk = self._clean_record(self.db.get_latest_risk(symbol))
-            prices = list(reversed(self.db.get_recent_prices(symbol, self._extract_days(message))))
+            latest_close = float(risk.get("close") or holding.get("avgPrice") or 0.0)
+            market_value = float(holding.get("quantity", 0) or 0) * latest_close
+            total_market_value += market_value
+            if int(risk.get("risk_flag") or 0) == 1:
+                high_risk_count += 1
+            holding_details.append(
+                {
+                    "symbol": symbol,
+                    "name": holding.get("name") or self._symbol_display_name(symbol),
+                    "quantity": float(holding.get("quantity", 0) or 0),
+                    "avg_price": float(holding.get("avgPrice", 0) or 0),
+                    "market_value": market_value,
+                    "risk": risk,
+                }
+            )
 
-            if risk:
-                context += f"\n=== {symbol} ===\n"
-                context += f"Price: {risk.get('close')}\n"
-                context += f"Risk: {'HIGH' if risk.get('risk_flag') == 1 else 'LOW'}\n"
-                context += f"Volatility: {risk.get('volatility_7d')}\n"
-                context += f"MA7: {risk.get('ma_7d')} | MA30: {risk.get('ma_30d')}\n"
+        highest_risk = max(
+            holding_details,
+            key=lambda item: (float(item["risk"].get("risk_score") or 0), int(item["risk"].get("risk_flag") or 0)),
+            default=None,
+        )
 
-            if prices and len(prices) >= 2:
-                first = float(prices[0]["close"])
-                last = float(prices[-1]["close"])
-                change = ((last - first) / first) * 100 if first else 0
-                context += f"Trend: {change:.2f}% over {len(prices)} days\n"
+        top_holding_value = max((item["market_value"] for item in holding_details), default=0.0)
+        concentration_ratio = (top_holding_value / total_market_value) if total_market_value else 0.0
 
-        return context
-
-    def _trend_label(self, symbol: str, message: str) -> str:
-        recent_prices = list(reversed(self.db.get_recent_prices(symbol, self._extract_days(message))))
-        if len(recent_prices) >= 2:
-            first = float(recent_prices[0]["close"])
-            last = float(recent_prices[-1]["close"])
-            if last > first:
-                return "up"
-            if last < first:
-                return "down"
-        return "steady"
-
-    def _symbol_display_name(self, symbol: str) -> str:
-        reverse_aliases = {
-            "AAPL": "Apple",
-            "TSLA": "Tesla",
-            "BTC-USD": "Bitcoin",
-            "ETH-USD": "Ethereum",
-            "EURUSD=X": "EUR/USD",
+        return {
+            "email": account.get("email"),
+            "cash": cash,
+            "starting_cash": starting_cash,
+            "spent_amount": spent_amount,
+            "spent_ratio": spent_ratio,
+            "holding_count": len(holding_details),
+            "high_risk_count": high_risk_count,
+            "concentration_ratio": concentration_ratio,
+            "holdings": holding_details,
+            "highest_risk": highest_risk,
         }
-        return reverse_aliases.get(symbol, symbol)
 
-    def _extract_budget(self, message: str) -> float | None:
-        match = re.search(r"\$?\s*(\d+(?:\.\d+)?)", message.replace(",", ""))
-        if not match:
-            return None
-        try:
-            value = float(match.group(1))
-        except ValueError:
-            return None
-        return value if value > 0 else None
+    def _no_data_message(self) -> str:
+        return "I do not have enough transaction or risk data for your account yet. Add portfolio activity first, then ask again."
+
+    def generate_response(self, user_id: str, message: str) -> str:
+        """Generate a contextual chatbot reply from user portfolio and risk data."""
+        snapshot = self._build_user_snapshot(user_id)
+        if not snapshot or not snapshot["holdings"]:
+            return self._no_data_message()
+
+        lowered = message.lower()
+        highest_risk = snapshot.get("highest_risk")
+
+        if "risk" in lowered:
+            if not highest_risk:
+                return self._no_data_message()
+            risk = highest_risk["risk"]
+            symbol = highest_risk["symbol"]
+            score = float(risk.get("risk_score") or 0)
+            risk_label = "HIGH" if int(risk.get("risk_flag") or 0) == 1 else "LOW"
+            return (
+                f"Your latest portfolio risk looks {risk_label} with a score of {score:.1f}, driven most by {symbol}. "
+                f"You currently hold {snapshot['holding_count']} asset(s), with {snapshot['high_risk_count']} flagged as high risk."
+            )
+
+        if any(keyword in lowered for keyword in ADVICE_KEYWORDS):
+            suggestions: List[str] = []
+            if snapshot["spent_ratio"] > 0.75:
+                suggestions.append("Slow new spending and keep a larger cash buffer for the next few trades.")
+            elif snapshot["spent_ratio"] < 0.25:
+                suggestions.append("You are deploying cash cautiously, so add exposure gradually instead of making one large move.")
+
+            if snapshot["concentration_ratio"] > 0.6:
+                suggestions.append("Your portfolio is concentrated in one position, so diversify to reduce single-asset risk.")
+
+            if snapshot["high_risk_count"] > 0:
+                suggestions.append("Reduce exposure to the highest-risk holding or offset it with a steadier asset.")
+
+            if not suggestions:
+                suggestions.append("Keep monitoring your risk signals and rebalance only in small steps as prices change.")
+
+            return " ".join(suggestions[:2])
+
+        highest_symbol = highest_risk["symbol"] if highest_risk else snapshot["holdings"][0]["symbol"]
+        return (
+            f"I can explain your current risk or give portfolio advice. Right now your account is most exposed to {highest_symbol}, "
+            f"and you have used about {snapshot['spent_ratio'] * 100:.0f}% of your starting cash."
+        )
 
     def _fallback_reply(self, intent: str, message: str, symbols: List[str]) -> str:
         lowered = message.lower().strip()
 
         if lowered in {"hi", "hello", "hey", "hey there"}:
-            return "Hi, I'm AegisAI. Ask me about a tracked asset like Apple, Tesla, Bitcoin, or ask me to explain a finance term simply."
+            return "Hi, I'm AegisAI. Ask me about your risk, your portfolio advice, or a tracked asset like Apple or Bitcoin."
 
         if intent == "list_symbols":
             top = self.available_symbols[:20]
-            return (
-                "Here are some tracked symbols: "
-                + ", ".join(top)
-                + (" ..." if len(self.available_symbols) > 20 else "")
-            )
+            return "Here are some tracked symbols: " + ", ".join(top) + (" ..." if len(self.available_symbols) > 20 else "")
 
         if intent == "latest_risk" and symbols:
             symbol = symbols[0]
@@ -213,37 +283,13 @@ Your rules:
                 return "A good starting idea is to balance safer assets and more volatile ones instead of putting everything in one place. If you want, I can compare Apple, Tesla, Bitcoin, and Ethereum in simple words."
             return "That depends on how much risk you can handle. If you want something steadier, look first at Apple or EUR/USD, and if you accept bigger ups and downs, Bitcoin or Tesla are more aggressive choices."
 
-        if symbols:
-            symbol = symbols[0]
-            risk = self._clean_record(self.db.get_latest_risk(symbol))
-            if risk:
-                trend = self._trend_label(symbol, message)
-                risk_label = "risky" if risk.get("risk_flag") == 1 else "safer"
-                return f"{self._symbol_display_name(symbol)} is one of the tracked assets. Right now it looks {risk_label}, and its recent trend is {trend}."
+        return "I can help with your account risk, portfolio advice, tracked assets like Apple and Bitcoin, or explain finance terms in simple words."
 
-        return "I can help with tracked assets like Apple, Tesla, Bitcoin, Ethereum, or EUR/USD. You can also ask me to compare assets or explain a finance term in simple words."
-
-    def _call_llm(self, message: str, context: str) -> str:
-        if client is None:
-            raise RuntimeError("Missing GROQ_API_KEY")
-
-        response = client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[
-                {"role": "system", "content": context},
-                {"role": "user", "content": message},
-            ],
-            max_tokens=120,
-            temperature=0.4,
-        )
-        reply = response.choices[0].message.content.strip()
-        reply = re.sub(r"remember,? this is not financial advice.*", "", reply, flags=re.IGNORECASE).strip()
-        return reply
-
-    def handle_message(self, message: str) -> Tuple[str, str, List[str], Dict]:
+    def handle_message(self, message: str, user_id: str | None = None) -> Tuple[str, str, List[str], Dict[str, Any]]:
+        """Route a chat message through the rule-based assistant."""
         symbols = self.detect_symbols(message)
-        intent = self._intent_from_message(message, symbols)
-        structured = {
+        intent = self._intent_from_message(message, symbols, user_id)
+        structured: Dict[str, Any] = {
             symbol: {
                 "risk": self._clean_record(self.db.get_latest_risk(symbol)),
                 "features": self._clean_record(self.db.get_latest_features(symbol)),
@@ -251,15 +297,15 @@ Your rules:
             for symbol in symbols
         }
 
-        if intent in {"list_symbols", "latest_risk", "compare_assets", "explain_term", "trend_summary", "investment_guidance"}:
-            return self._fallback_reply(intent, message, symbols), intent, symbols, structured
+        if user_id:
+            structured["user_context"] = self._build_user_snapshot(user_id)
 
-        context = self._build_context(message, symbols)
-        try:
-            reply = self._call_llm(message, context)
-            if not reply:
-                reply = self._fallback_reply(intent, message, symbols)
-        except Exception:
-            reply = self._fallback_reply(intent, message, symbols)
+        if user_id and intent in {"portfolio_risk", "portfolio_advice"}:
+            return self.generate_response(user_id, message), intent, symbols, structured
 
-        return reply, intent, symbols, structured
+        return self._fallback_reply(intent, message, symbols), intent, symbols, structured
+
+
+def generate_response(user_id: str, message: str) -> str:
+    """Convenience wrapper for contextual chatbot responses."""
+    return FinanceAssistant().generate_response(user_id, message)
