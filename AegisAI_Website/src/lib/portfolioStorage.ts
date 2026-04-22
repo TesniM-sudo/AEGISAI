@@ -3,6 +3,7 @@ export type Role = "admin" | "user";
 export type SessionData = {
   email: string;
   role: Role;
+  sessionToken: string;
 };
 
 export type Holding = {
@@ -18,9 +19,36 @@ export type PortfolioState = {
   holdings: Holding[];
 };
 
+export type HistoryEntry = {
+  timestamp: string;
+  side: "buy" | "sell" | "manual";
+  symbol: string;
+  quantity: number;
+  price: number;
+  total: number;
+  note?: string | null;
+};
+
 export type AccountStateResponse = {
   session: SessionData;
   portfolio: PortfolioState;
+};
+
+export type AdminAccountView = {
+  email: string;
+  password: string;
+  role: Role;
+  portfolio: PortfolioState;
+  history: HistoryEntry[];
+};
+
+export type AdminAccountsResponse = {
+  users: AdminAccountView[];
+};
+
+export type ActionResponse = {
+  ok: boolean;
+  message: string;
 };
 
 const PORTFOLIO_PREFIX = "aegis_portfolio_v1:";
@@ -62,6 +90,7 @@ export const buildLocalAccountState = (email: string): AccountStateResponse => (
   session: {
     email: normalizeEmail(email),
     role: normalizeEmail(email) === "admin@aegisai.com" ? "admin" : "user",
+    sessionToken: `local-${normalizeEmail(email)}`,
   },
   portfolio: loadStoredPortfolio(email),
 });

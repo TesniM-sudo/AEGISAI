@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Account from "./pages/Account";
+import AdminHistory from "./pages/AdminHistory";
 import Trade from "./pages/Trade";
 import Contact from "./pages/Contact";
 import ChatLauncher from "@/components/ChatLauncher";
@@ -26,6 +27,7 @@ const App = () => (
             <Route element={<Layout />}>
               <Route path="/" element={<Index />} />
               <Route path="/account" element={<Account />} />
+              <Route path="/admin/history" element={<AdminHistory />} />
               <Route path="/trade" element={<Trade />} />
               <Route path="/contact" element={<Contact />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

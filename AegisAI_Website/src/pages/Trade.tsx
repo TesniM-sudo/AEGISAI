@@ -5,15 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cryptoAssets } from "@/data/cryptoData";
 import CandlestickChart, { type Candle } from "@/components/CandlestickChart";
 import { fetchCandles } from "@/lib/marketApi";
-import { loadStoredPortfolio, saveStoredPortfolio, type PortfolioState } from "@/lib/portfolioStorage";
+import { loadStoredPortfolio, saveStoredPortfolio, type HistoryEntry, type PortfolioState, type SessionData } from "@/lib/portfolioStorage";
 
 const SESSION_KEY = "aegis_account_session_v2";
 const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
-
-type SessionData = {
-  email: string;
-  role: "admin" | "user";
-};
 
 type TradeSide = "buy" | "sell";
 
@@ -22,7 +17,7 @@ const loadSession = (): SessionData | null => {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as SessionData;
-    if (!parsed?.email || !parsed?.role) return null;
+    if (!parsed?.email || !parsed?.role || !parsed?.sessionToken) return null;
     return parsed;
   } catch {
     return null;
@@ -46,9 +41,11 @@ const fetchJson = async <T,>(path: string, init?: RequestInit): Promise<T> => {
   return payload as T;
 };
 
-const loadPortfolio = async (email: string) => {
+const loadPortfolio = async (email: string, sessionToken: string) => {
   try {
-    const response = await fetchJson<PortfolioState>(`/account/portfolio?email=${encodeURIComponent(normalizeEmail(email))}`);
+    const response = await fetchJson<PortfolioState>(
+      `/account/portfolio?email=${encodeURIComponent(normalizeEmail(email))}&session_token=${encodeURIComponent(sessionToken)}`,
+    );
     if ("cash" in response && "holdings" in response) {
       return response;
     }
@@ -58,11 +55,16 @@ const loadPortfolio = async (email: string) => {
   return loadStoredPortfolio(email);
 };
 
-const savePortfolio = async (email: string, portfolio: PortfolioState) => {
+const savePortfolio = async (email: string, sessionToken: string, portfolio: PortfolioState, historyEntry?: HistoryEntry) => {
   try {
     const response = await fetchJson<PortfolioState>("/account/portfolio", {
       method: "POST",
-      body: JSON.stringify({ email: normalizeEmail(email), portfolio }),
+      body: JSON.stringify({
+        email: normalizeEmail(email),
+        sessionToken,
+        portfolio,
+        history_entry: historyEntry ?? null,
+      }),
     });
     if ("cash" in response && "holdings" in response) {
       return response;
@@ -123,7 +125,7 @@ const Trade = () => {
         return;
       }
       try {
-        const next = await loadPortfolio(session.email);
+        const next = await loadPortfolio(session.email, session.sessionToken);
         setPortfolio(next);
       } catch (error) {
         setTradeError(error instanceof Error ? error.message : "Could not load portfolio.");
@@ -217,7 +219,16 @@ const Trade = () => {
         }
       }
 
-      const saved = await savePortfolio(session.email, nextPortfolio);
+      const historyEntry: HistoryEntry = {
+        timestamp: new Date().toISOString(),
+        side,
+        symbol: selectedSymbol,
+        quantity: qty,
+        price: selectedPrice,
+        total: qty * selectedPrice,
+      };
+
+      const saved = await savePortfolio(session.email, session.sessionToken, nextPortfolio, historyEntry);
       setPortfolio(saved);
       setQuantity("");
       setTradeMessage(`${side === "buy" ? "Buy" : "Sell"} order executed and saved.`);

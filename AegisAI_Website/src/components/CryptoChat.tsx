@@ -4,11 +4,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 
 type Msg = { role: "user" | "assistant"; content: string };
-type SessionData = { email: string; role: "admin" | "user" };
 
 const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
 const CHAT_URL = `${API_BASE}/chat`;
-const SESSION_KEY = "aegis_account_session_v2";
 
 interface CryptoChatProps {
   assetName: string;
@@ -20,19 +18,6 @@ type ChatResponse = {
   intent?: string;
   symbols?: string[];
   structured_data?: Record<string, unknown>;
-};
-
-const loadSession = (): SessionData | null => {
-  const raw = localStorage.getItem(SESSION_KEY);
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw) as SessionData;
-    if (!parsed?.email || !parsed?.role) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
 };
 
 const buildLocalReply = (assetName: string, text: string) => {
@@ -58,7 +43,6 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const session = loadSession();
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -80,11 +64,7 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
         headers: {
           "Content-Type": "application/json",
         },
-        // UPDATED: send user_id so the backend can use account context.
-        body: JSON.stringify({
-          message: enrichedMessage,
-          user_id: session?.email ?? null,
-        }),
+        body: JSON.stringify({ message: enrichedMessage }),
       });
 
       if (!resp.ok) {
@@ -121,7 +101,6 @@ const CryptoChat = ({ assetName, color }: CryptoChatProps) => {
             <Bot size={24} className="mx-auto mb-2 opacity-30" />
             <p>Ask me about {assetName}</p>
             <p className="mt-1 text-[10px]">Connected to AegisAI backend chat when available</p>
-            {session?.email && <p className="mt-1 text-[10px]">Signed in context enabled for {session.email}</p>}
           </div>
         )}
         <AnimatePresence>

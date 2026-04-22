@@ -8,7 +8,9 @@
         "startingCash": 100000,
         "cash": 100000,
         "holdings": []
-      }
+      },
+      "history": [],
+      "session_token": "AAbHa54EnNy-9bvoYsjb8K_DMgxqEvwC"
     },
     "admin@aegisai.com": {
       "email": "admin@aegisai.com",
@@ -16,16 +18,37 @@
       "role": "admin",
       "portfolio": {
         "startingCash": 100000.0,
-        "cash": 99998.763698,
-        "holdings": [
-          {
-            "symbol": "AAPL",
-            "name": "Apple",
-            "quantity": 0.0011,
-            "avgPrice": 214.82
-          }
-        ]
-      }
+        "cash": 99999.0,
+        "holdings": []
+      },
+      "history": [],
+      "session_token": "C5texjZomxmOQXVF0-zRe_r-IWIvu8UW"
+    },
+    "ttestff@gmail.com": {
+      "email": "ttestff@gmail.com",
+      "password": "bbbb",
+      "role": "user",
+      "portfolio": {
+        "startingCash": 100000,
+        "cash": 100000,
+        "holdings": []
+      },
+      "history": [],
+      "session_token": "LOyGLEOfel-pZHhz7bxLuQVNtUQmuN6r"
     }
-  }
+  },
+  "account_deletion_feedback": [
+    {
+      "email": "temp-delete@aegisai.com",
+      "role": "user",
+      "feedback": "temporary verification account",
+      "deleted_by": "temp-delete@aegisai.com"
+    },
+    {
+      "email": "jj@gmail.com",
+      "role": "user",
+      "feedback": "stupid",
+      "deleted_by": "jj@gmail.com"
+    }
+  ]
 }
