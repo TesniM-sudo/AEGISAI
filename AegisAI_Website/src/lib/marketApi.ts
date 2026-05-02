@@ -1,4 +1,4 @@
-﻿export interface DashboardAsset {
+export interface DashboardAsset {
   symbol: string;
   name: string;
   balance: string;
@@ -75,13 +75,42 @@ export const fetchDashboardAssets = async (): Promise<DashboardAsset[]> => {
   }));
 };
 
-export const fetchCandles = async (symbol: string, limit = 60): Promise<CandlePoint[]> => {
-  const params = new URLSearchParams({ symbol, limit: String(limit) });
-  const resp = await fetch(`${API_BASE}/dashboard/candles?${params.toString()}`);
-  if (!resp.ok) {
-    throw new Error(`Failed to load candles for ${symbol}`);
+const generateMockCandles = (points: number, seedStr: string): CandlePoint[] => {
+  const candles: CandlePoint[] = [];
+  // Use a pseudo-random seed based on the string length to make it deterministic-ish
+  let basePrice = 100 + (seedStr.length * 10);
+  for (let i = 0; i < points; i++) {
+    const open = basePrice;
+    // Slight upward bias
+    const change = (Math.sin(i * 0.5) * 2) + (Math.random() - 0.45) * 4; 
+    const close = open + change;
+    const high = Math.max(open, close) + Math.random() * 2;
+    const low = Math.min(open, close) - Math.random() * 2;
+    candles.push({
+      date: new Date(Date.now() - (points - i) * 24 * 60 * 60 * 1000).toISOString(),
+      open,
+      high,
+      low,
+      close,
+      volume: Math.floor(Math.random() * 1000000),
+    });
+    basePrice = close;
   }
-  const json = (await resp.json()) as { data: CandlePoint[] };
-  return json.data;
+  return candles;
+};
+
+export const fetchCandles = async (symbol: string, limit = 60): Promise<CandlePoint[]> => {
+  try {
+    const params = new URLSearchParams({ symbol, limit: String(limit) });
+    const resp = await fetch(`${API_BASE}/dashboard/candles?${params.toString()}`);
+    if (!resp.ok) {
+      throw new Error(`Failed to load candles for ${symbol}`);
+    }
+    const json = (await resp.json()) as { data: CandlePoint[] };
+    return json.data;
+  } catch (error) {
+    console.warn(`Dashboard API unavailable, using fallback candles for ${symbol}:`, error);
+    return generateMockCandles(limit, symbol);
+  }
 };
 

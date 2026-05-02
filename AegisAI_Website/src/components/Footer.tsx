@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom";
-import { Github, Heart } from "lucide-react";
+import { Github, Heart, Phone, Mail, MapPin } from "lucide-react";
 
 const Footer = () => {
   return (
     <footer className="relative z-10 w-full border-t border-black/10 bg-background/50 backdrop-blur-md dark:border-white/5">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:py-16 md:px-10">
-        <div className="grid gap-8 xl:grid-cols-3 xl:gap-12">
+        <div className="grid gap-8 xl:grid-cols-4 xl:gap-12">
           <div className="flex flex-col xl:col-span-1">
-            <Link to="/" className="flex items-center gap-3">
+            <Link to="/home" className="flex items-center gap-3">
               <img
                 src="/aegisai-logo.png"
                 alt="AegisAI mark"
@@ -29,12 +29,46 @@ const Footer = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 xl:col-span-2">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 xl:col-span-3">
             <div>
               <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">Platform</h3>
               <ul className="mt-4 space-y-3 text-sm">
+                <li><Link to="/home" className="text-muted-foreground transition hover:text-cyan-400">Home</Link></li>
+                <li><Link to="/wallet" className="text-muted-foreground transition hover:text-cyan-400">Wallet</Link></li>
+                <li><Link to="/trade" className="text-muted-foreground transition hover:text-cyan-400">Trade</Link></li>
                 <li><Link to="/account" className="text-muted-foreground transition hover:text-cyan-400">Account</Link></li>
+                <li><Link to="/admin/history" className="text-muted-foreground transition hover:text-cyan-400">Admin</Link></li>
                 <li><Link to="/contact" className="text-muted-foreground transition hover:text-cyan-400">Contact</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">Account</h3>
+              <ul className="mt-4 space-y-3 text-sm">
+                <li><Link to="/account" className="text-muted-foreground transition hover:text-cyan-400">Profile</Link></li>
+                <li><Link to="/account" className="text-muted-foreground transition hover:text-cyan-400">Settings</Link></li>
+                <li><Link to="/" className="text-muted-foreground transition hover:text-red-400">Sign Out</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">Contact</h3>
+              <ul className="mt-4 space-y-4 text-sm">
+                <li className="flex items-start gap-3">
+                  <Phone className="h-4 w-4 text-cyan-500 shrink-0 mt-0.5" />
+                  <span className="text-muted-foreground">1-800-AEGIS-AI</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Mail className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <span className="text-muted-foreground">contact@aegisai.com</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <MapPin className="h-4 w-4 text-indigo-500 shrink-0 mt-0.5" />
+                  <span className="text-muted-foreground">123 Market St, SF, CA</span>
+                </li>
+                <li className="pt-2">
+                  <Link to="/contact" className="text-cyan-500 hover:text-cyan-400 font-medium transition">Get in touch &rarr;</Link>
+                </li>
               </ul>
             </div>
           </div>

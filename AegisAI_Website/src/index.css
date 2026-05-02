@@ -42,8 +42,8 @@
     --neon-ada: 170 80% 50%;
     --neon-dot: 340 80% 55%;
 
-    --glass-bg: 0 0% 100% / 0.05;
-    --glass-border: 0 0% 100% / 0.1;
+    --glass-bg: 230 15% 5% / 0.4;
+    --glass-border: 0 0% 100% / 0.08;
     --glass-shine: 0 0% 100% / 0.15;
 
     --sidebar-background: 230 15% 5%;
@@ -57,7 +57,7 @@
   }
 
   .light {
-    --background: 214 30% 96%;
+    --background: 214 30% 98%;
     --foreground: 222 47% 12%;
 
     --card: 0 0% 100%;
@@ -73,7 +73,7 @@
     --secondary-foreground: 222 47% 16%;
 
     --muted: 214 22% 84%;
-    --muted-foreground: 222 22% 24%;
+    --muted-foreground: 222 22% 35%;
 
     --accent: 168 75% 32%;
     --accent-foreground: 0 0% 100%;
@@ -81,21 +81,21 @@
     --destructive: 0 78% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 24% 72%;
+    --border: 215 24% 85%;
     --input: 215 24% 82%;
     --ring: 210 92% 44%;
 
-    --glass-bg: 0 0% 100% / 0.9;
-    --glass-border: 215 20% 50% / 0.38;
+    --glass-bg: 0 0% 100% / 0.7;
+    --glass-border: 215 20% 50% / 0.15;
     --glass-shine: 0 0% 100% / 0.2;
 
-    --sidebar-background: 214 30% 96%;
+    --sidebar-background: 214 30% 98%;
     --sidebar-foreground: 222 47% 16%;
     --sidebar-primary: 210 92% 44%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 214 23% 88%;
     --sidebar-accent-foreground: 222 47% 16%;
-    --sidebar-border: 215 24% 79%;
+    --sidebar-border: 215 24% 85%;
     --sidebar-ring: 210 92% 44%;
   }
 }

@@ -52,13 +52,13 @@ const CryptoCard = ({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 40, scale: 0.97 }}
-      whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: index * 0.05 }}
-      viewport={{ once: true, amount: 0.18 }}
-      className="group relative"
-    >
+      <motion.div
+        initial={{ opacity: 0, y: 40, scale: 0.97 }}
+        whileInView={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: index * 0.05 }}
+        viewport={{ once: false, amount: 0.18 }}
+        className="group relative"
+      >
       <div
         className="pointer-events-none absolute -inset-4 rounded-[40px] opacity-0 transition-opacity duration-700 group-hover:opacity-100"
         style={{ background: `radial-gradient(circle at center, ${color}15 0%, transparent 70%)` }}

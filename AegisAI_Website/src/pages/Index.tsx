@@ -231,19 +231,7 @@ const Index = () => {
           </div>
         </motion.div>
 
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Tracked assets</p>
-            <h2 className="mt-1 text-2xl font-semibold md:text-3xl">Explore your tracked assets</h2>
-          </div>
-          <p className="text-sm text-muted-foreground md:max-w-md md:text-right">Open any card for full context, chart behavior, and risk signals.</p>
-        </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          {assets.map((asset, index) => (
-            <CryptoCard key={asset.symbol} {...asset} index={index} onClick={() => void openAssetDetails(asset)} />
-          ))}
-        </div>
       </section>
 
       <AnimatePresence>{selectedAsset && <AssetDetailView asset={selectedAsset} onClose={() => setSelectedAsset(null)} />}</AnimatePresence>

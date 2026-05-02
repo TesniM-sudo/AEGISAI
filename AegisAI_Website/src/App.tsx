@@ -9,6 +9,8 @@ import Account from "./pages/Account";
 import AdminHistory from "./pages/AdminHistory";
 import Trade from "./pages/Trade";
 import Contact from "./pages/Contact";
+import Login from "./pages/Login";
+import Wallet from "./pages/Wallet";
 import ChatLauncher from "@/components/ChatLauncher";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -24,8 +26,10 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<Login />} />
             <Route element={<Layout />}>
-              <Route path="/" element={<Index />} />
+              <Route path="/home" element={<Index />} />
+              <Route path="/wallet" element={<Wallet />} />
               <Route path="/account" element={<Account />} />
               <Route path="/admin/history" element={<AdminHistory />} />
               <Route path="/trade" element={<Trade />} />
