@@ -1,12 +1,17 @@
-import sqlite3
-from datetime import datetime
+﻿from __future__ import annotations
 
-conn = sqlite3.connect("aegisai.db")
+import sqlite3
+
+from config import DB_PATH
+
+
+conn = sqlite3.connect(str(DB_PATH))
 cursor = conn.cursor()
 
-cursor.execute("SELECT symbol, MAX(date) FROM market_data GROUP BY symbol")
-rows = cursor.fetchall()
-for row in rows:
-    print(row)
-
-conn.close()
+try:
+    cursor.execute("SELECT symbol, MAX(date) FROM market_data GROUP BY symbol")
+    rows = cursor.fetchall()
+    for row in rows:
+        print(row)
+finally:
+    conn.close()

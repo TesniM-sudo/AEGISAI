@@ -13,7 +13,7 @@ import math
 # Chatbot imports
 from config import API_TITLE
 from finance_assistant import FinanceAssistant
-from schemas import ChatRequest, ChatResponse, PredictRequest, DecisionFeedbackRequest, DecisionFeedbackResponse
+from schemas import ChatRequest, ChatResponse, PredictRequest
 from services.notification_service import notify_user
 from services import auto_update_service
 
@@ -23,11 +23,6 @@ from routes import account
 # ML imports
 from ml_models import predict_risk, predict_anomaly
 from forecasting.db import get_latest_forecast
-
-# Decision learning imports
-from decision_engine import apply_feedback, make_decision
-from incremental_model import update_model
-from reward_engine import compute_reward, forecast_to_state
 
 # ── App Initialization ─────────────────────────────────────────────────────────
 @asynccontextmanager
@@ -124,60 +119,6 @@ def chat(request: ChatRequest):
         intent=intent,
         symbols=symbols,
         structured_data=structured,
-    )
-
-
-@app.post("/decision/feedback", response_model=DecisionFeedbackResponse)
-def decision_feedback(request: DecisionFeedbackRequest):
-    """Update RL + incremental model from feedback.
-
-    - If `label_risky` is provided, we update the incremental SGD classifier online.
-    - If reward/next_state are omitted (and auto_reward=true), we derive them from the
-      2 most recent forecasts for this symbol.
-    """
-    symbol = request.symbol
-
-    from forecasting.db import get_latest_forecast, get_recent_forecasts
-
-    latest = get_latest_forecast(engine, symbol=symbol)
-    if not latest:
-        raise HTTPException(status_code=404, detail=f"No forecast data found for {symbol}.")
-    latest.pop("id", None)
-
-    decision = make_decision(latest)
-    features = decision.get("features")
-
-    updated_incremental = False
-    updated_rl = False
-    details = {"decision": decision}
-
-    if request.label_risky is not None and features is not None:
-        update_model([features], [int(request.label_risky)])
-        updated_incremental = True
-
-    state = int(request.state) if request.state is not None else int(decision["state"])
-    action = int(request.action) if request.action is not None else int(decision["action"])
-    reward = request.reward
-    next_state = request.next_state
-
-    if request.auto_reward and (reward is None or next_state is None):
-        rows = get_recent_forecasts(engine, symbol=symbol, limit=2)
-        if len(rows) >= 2:
-            newest = rows[0]
-            prev = rows[1]
-            reward = float(reward) if reward is not None else float(compute_reward(prev, newest, action=action))
-            next_state = int(next_state) if next_state is not None else int(forecast_to_state(newest))
-            details["auto_reward"] = {"reward": reward, "next_state": next_state}
-
-    if reward is not None and next_state is not None:
-        details["rl_update"] = apply_feedback(state=state, action=action, reward=float(reward), next_state=int(next_state))
-        updated_rl = True
-
-    return DecisionFeedbackResponse(
-        ok=True,
-        updated_rl=updated_rl,
-        updated_incremental=updated_incremental,
-        details=details,
     )
 
 # ── Market Data ──────────────────────────────────────────────────────────────

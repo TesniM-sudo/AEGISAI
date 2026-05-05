@@ -14,6 +14,7 @@ import yfinance as yf
 
 from database import engine
 from risk_engine import train_model
+from forecasting.pipeline import run_forecast_pipeline
 
 
 SYMBOLS = ["BTC-USD", "ETH-USD", "AAPL", "TSLA", "EURUSD=X"]
@@ -40,6 +41,12 @@ def update_market_data() -> dict:
             )
             last_date = result.iloc[0]["last_date"]
             start_date = _next_start_date(last_date)
+            today = date.today().isoformat()
+            if start_date > today:
+                # Avoid yfinance errors when the DB is already ahead of "today" (timezone / close timing).
+                print(f"  {symbol}: Already up to date (start {start_date} > today {today}).")
+                per_symbol[symbol] = 0
+                continue
 
             data = None
             for attempt in range(3):
@@ -138,7 +145,22 @@ def run_update_all() -> dict:
     market = update_market_data()
     features = rebuild_features()
     risk = rebuild_risk_predictions()
-    return {"started_date": started, "market": market, "features": features, "risk": risk}
+    forecast: dict
+    try:
+        print("\n[STEP 4] Rebuilding market_risk_forecasts...")
+        forecast = run_forecast_pipeline(engine)
+        print("  [OK] market_risk_forecasts updated.")
+    except Exception as exc:
+        print(f"  [!] Forecast step failed: {type(exc).__name__}: {exc}")
+        forecast = {"ok": False, "error": str(exc)}
+
+    return {
+        "started_date": started,
+        "market": market,
+        "features": features,
+        "risk": risk,
+        "forecast": forecast,
+    }
 
 
 if __name__ == "__main__":

@@ -1,0 +1,68 @@
+{
+  "config": {
+    "c": 0.5,
+    "penalty": "l2",
+    "max_iter": 1000,
+    "class_weight_pos": 5,
+    "n_splits": 5,
+    "random_state": 42,
+    "calibration_method": "isotonic",
+    "min_train_positives_per_fold": 1
+  },
+  "targets": {
+    "drawdown_7d": {
+      "positive_rate": 0.29375,
+      "samples": 1120,
+      "metrics_last_fold": {
+        "roc_auc": 0.5362938189025147,
+        "pr_auc": 0.38868208416290395,
+        "brier": 0.2352477691497736
+      }
+    },
+    "drawdown_30d": {
+      "positive_rate": 0.3080357142857143,
+      "samples": 1120,
+      "metrics_last_fold": {
+        "roc_auc": 0.6160493827160494,
+        "pr_auc": 0.3364104442003174,
+        "brier": 0.20061429837361222
+      }
+    },
+    "vol_spike_7d": {
+      "positive_rate": 0.08303571428571428,
+      "samples": 1120,
+      "metrics_last_fold": {
+        "roc_auc": 0.518014705882353,
+        "pr_auc": 0.09386840062111801,
+        "brier": 0.08036552249382238
+      }
+    },
+    "vol_spike_30d": {
+      "positive_rate": 0.12232142857142857,
+      "samples": 1120,
+      "metrics_last_fold": {
+        "roc_auc": null,
+        "pr_auc": null,
+        "brier": null
+      }
+    },
+    "anomaly_7d": {
+      "positive_rate": 0.15892857142857142,
+      "samples": 1120,
+      "metrics_last_fold": {
+        "roc_auc": 0.37903439153439156,
+        "pr_auc": 0.3021466741867695,
+        "brier": 0.2586348793793237
+      }
+    },
+    "anomaly_30d": {
+      "positive_rate": 0.37589285714285714,
+      "samples": 1120,
+      "metrics_last_fold": {
+        "roc_auc": 0.6462778293135436,
+        "pr_auc": 0.6321264745154582,
+        "brier": 0.2415238702362929
+      }
+    }
+  }
+}

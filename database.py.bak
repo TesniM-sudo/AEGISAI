@@ -1,27 +1,8 @@
-﻿from __future__ import annotations
-
-import os
-from pathlib import Path
-
-from sqlalchemy import Column, Date, Float, Integer, String, UniqueConstraint, create_engine
+from sqlalchemy import create_engine, Column, Integer, String, Float, Date, UniqueConstraint
 from sqlalchemy.orm import declarative_base
 
-from config import BASE_DIR, DB_PATH as DEFAULT_DB_PATH
-
-
-def _resolve_db_path() -> Path:
-    raw = os.getenv("AEGISAI_DB_PATH")
-    path = Path(raw) if raw else DEFAULT_DB_PATH
-    if not path.is_absolute():
-        path = (BASE_DIR / path).resolve()
-    return path
-
-
-DB_FILE = _resolve_db_path()
-DB_URL = f"sqlite:///{DB_FILE.as_posix()}"
-
 # Create SQLite database
-engine = create_engine(DB_URL, echo=False)
+engine = create_engine("sqlite:///aegisai.db", echo=False)
 
 # Define Base
 Base = declarative_base()
@@ -42,13 +23,15 @@ class MarketData(Base):
     asset_type = Column(String)
 
     # Prevents duplicate (symbol + date) entries
-    __table_args__ = (UniqueConstraint("symbol", "date", name="uq_symbol_date"),)
+    __table_args__ = (
+        UniqueConstraint("symbol", "date", name="uq_symbol_date"),
+    )
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         return f"<MarketData(symbol={self.symbol}, date={self.date}, close={self.close})>"
 
 
 # Create table if it doesn't exist
 if __name__ == "__main__":
     Base.metadata.create_all(engine)
-    print(f"Database and table created successfully at: {DB_FILE}")
+    print("Database and table created successfully!")

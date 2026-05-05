@@ -1,0 +1,75 @@
+﻿from __future__ import annotations
+
+"""Reward + state mapping for the RL layer.
+
+We treat the forecasting outputs as the "environment signal":
+  s_t      = forecast probabilities at time t
+  s_{t+1}  = forecast probabilities at time t+1
+
+Offline RL note:
+  In offline training we do not have a live trading environment. Instead, we
+  simulate environment transitions by walking forward through historical market
+  time-series and treating consecutive forecast snapshots as (s_t -> s_{t+1}).
+
+Reward design:
+  We want actions that lead to *lower future risk signals* to be reinforced.
+  Drawdown risk is weighted more heavily than volatility or anomaly signals.
+"""
+
+from typing import Any, Dict
+
+
+_DRAWDOWN_W = 2.0
+_VOL_W = 1.0
+_ANOM_W = 1.0
+
+
+def _risk_components(forecast: Dict[str, Any]) -> tuple[float, float, float]:
+    """Extract the 7d probabilities we use for state + reward."""
+    dd = float(forecast.get("drawdown_7d", 0.0) or 0.0)
+    vol = float(forecast.get("vol_spike_7d", 0.0) or 0.0)
+    anom = float(forecast.get("anomaly_7d", 0.0) or 0.0)
+    return dd, vol, anom
+
+
+def _risk_score(forecast: Dict[str, Any]) -> float:
+    dd, vol, anom = _risk_components(forecast)
+    return _DRAWDOWN_W * dd + _VOL_W * vol + _ANOM_W * anom
+
+
+def compute_reward(prev_forecast: Dict[str, Any], next_forecast: Dict[str, Any]) -> float:
+    """Weighted change-based reward from how risk evolves over time.
+
+    We score the transition by penalizing increases in risk and rewarding
+    decreases. The weights emphasize drawdown changes more than other signals.
+
+        reward = -2 * Δdrawdown  -1 * Δvol  -1 * Δanomaly
+        where Δx = next_x - prev_x
+
+    This makes reward positive when risk decreases and negative when risk
+    increases, with magnitude proportional to the size of the change.
+    """
+    prev_dd, prev_vol, prev_anom = _risk_components(prev_forecast)
+    next_dd, next_vol, next_anom = _risk_components(next_forecast)
+
+    dd_change = next_dd - prev_dd
+    vol_change = next_vol - prev_vol
+    anom_change = next_anom - prev_anom
+
+    return float(-_DRAWDOWN_W * dd_change - _VOL_W * vol_change - _ANOM_W * anom_change)
+
+
+def forecast_to_state(forecast: Dict[str, Any]) -> int:
+    """Map forecast probabilities into discrete RL states.
+
+    State bins are intentionally simple and cheap to compute.
+
+    Because drawdown is weighted more heavily, thresholds are calibrated for a
+    score in [0, ~4].
+    """
+    risk = _risk_score(forecast)
+    if risk < 0.6:
+        return 0
+    if risk < 1.6:
+        return 1
+    return 2

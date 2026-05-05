@@ -116,8 +116,6 @@ class FinanceAssistant:
             return "portfolio_advice"
         if user_id and "risk" in lowered and not symbols:
             return "portfolio_risk"
-        if symbols and any(key in lowered for key in ("should i", "buy", "sell", "invest", "hold", "diversify", "decision", "recommend")):
-            return "asset_decision"
         if "list supported symbols" in lowered or ("list" in lowered and "symbol" in lowered):
             return "list_symbols"
         if any(word in lowered for word in ["compare", "versus", "vs"]) and len(symbols) >= 2:
@@ -380,23 +378,6 @@ class FinanceAssistant:
             change_pct = ((last - first) / first) * 100 if first else 0
             direction = "up" if change_pct >= 0 else "down"
             return f"{self._symbol_display_name(symbol)} moved {direction} over the recent period, by about {abs(change_pct):.2f}%."
-
-
-        if intent == "asset_decision" and symbols:
-            symbol = symbols[0]
-            forecast = self._clean_record(self.db.get_latest_forecast(symbol))
-            if not forecast:
-                return (
-                    f"I do not have forecast probabilities saved for {symbol} yet. "
-                    "Run update_all.py (or hit /admin/update/run) to generate market_risk_forecasts first."
-                )
-            decision = make_decision(forecast)
-            return (
-                f"AI Decision for {self._symbol_display_name(symbol)} ({symbol}): {decision['recommendation']} "
-                f"(risk={decision['risk_level']}, score={decision['risk_prob']:.2f}). "
-                f"Explanation: {decision.get('explanation','')}"
-            )
-
 
         if intent == "investment_guidance":
             budget = self._extract_budget(message)

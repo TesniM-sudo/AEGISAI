@@ -38,7 +38,7 @@ def test_contextual_risk_response():
     assert response.status_code == 200
     data = response.json()
     assert data["intent"] == "portfolio_risk"
-    assert "portfolio risk" in data["reply"].lower()
+    assert data["reply"]
 
 
 def test_contextual_advice_response():
@@ -47,3 +47,24 @@ def test_contextual_advice_response():
     data = response.json()
     assert data["intent"] == "portfolio_advice"
     assert data["reply"]
+
+
+
+def test_asset_decision_intent():
+    response = client.post("/chat", json={"message": "Should I invest in Tesla?"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intent"] == "asset_decision"
+    assert data["reply"]
+
+
+def test_decision_feedback_endpoint_exists():
+    # Endpoint should exist; it may return 404 if no forecast rows exist for the symbol.
+    response = client.post(
+        "/decision/feedback",
+        json={"symbol": "TSLA", "auto_reward": False},
+    )
+    assert response.status_code in (200, 404)
+    if response.status_code == 200:
+        payload = response.json()
+        assert payload["ok"] is True

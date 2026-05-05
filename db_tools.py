@@ -68,3 +68,18 @@ class AegisDB:
                 (symbol,),
             ).fetchone()
         return dict(row) if row else None
+
+    def get_latest_forecast(self, symbol: str) -> Optional[Dict]:
+        """Return the latest forward-looking forecast probabilities for a symbol."""
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT timestamp, symbol, drawdown_7d, drawdown_30d, vol_spike_7d, vol_spike_30d, anomaly_7d, anomaly_30d
+                FROM market_risk_forecasts
+                WHERE symbol IS NOT NULL AND UPPER(symbol) = UPPER(?)
+                ORDER BY timestamp DESC, id DESC
+                LIMIT 1
+                """,
+                (symbol,),
+            ).fetchone()
+        return dict(row) if row else None

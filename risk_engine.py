@@ -54,4 +54,5 @@ def train_model():
     # 7) Save model
     joblib.dump(model, "risk_model.pkl")
 
-    print("✅ Risk model trained; predictions saved.")
+    print("[OK] Risk model trained; predictions saved.")
+    return model

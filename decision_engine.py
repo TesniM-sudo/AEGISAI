@@ -1,0 +1,167 @@
+﻿from __future__ import annotations
+
+"""Decision engine bridging forecasts -> incremental model -> RL action.
+
+Pipeline:
+  1) Take forecast probabilities (drawdown_7d, vol_spike_7d, anomaly_7d)
+  2) Incremental model outputs a decision-risk probability
+  3) Map decision-risk to discrete state {0,1,2}
+  4) RL agent selects an action (Invest/Hold/Diversify)
+
+This is intentionally lightweight and runs CPU-only.
+"""
+
+from typing import Any, Dict
+
+import numpy as np
+
+from incremental_model import predict_decision_risk
+from reward_engine import compute_reward, forecast_to_state
+from rl_agent import (
+    action_to_text,
+    choose_action,
+    explain_action,
+    explain_why_not,
+    load_q_table,
+    update_q,
+)
+
+
+def _feature_vector(forecast_data: Dict[str, Any]) -> np.ndarray:
+    return np.asarray(
+        [
+            float(forecast_data.get("drawdown_7d", 0.0) or 0.0),
+            float(forecast_data.get("vol_spike_7d", 0.0) or 0.0),
+            float(forecast_data.get("anomaly_7d", 0.0) or 0.0),
+        ],
+        dtype=float,
+    )
+
+
+def _risk_to_state(risk_prob: float) -> int:
+    p = float(risk_prob)
+    if p < 0.33:
+        return 0
+    if p < 0.66:
+        return 1
+    return 2
+
+
+def make_decision(forecast_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a decision object from forecast signals."""
+    features = _feature_vector(forecast_data)
+    risk_prob = predict_decision_risk(features)
+
+    # Decision state comes from the incremental model so online learning can change behavior.
+    state = _risk_to_state(risk_prob)
+
+    # Environment-derived state (for reward / diagnostics).
+    env_state = forecast_to_state(forecast_data)
+
+    action = choose_action(state)
+
+    risk_level = {0: "low", 1: "medium", 2: "high"}[state]
+    recommendation = action_to_text(action)
+
+    q_table = load_q_table()
+    explanation = explain_action(state=state, action=action, q_table=q_table)
+    why_not = explain_why_not(state=state, action=action, q_table=q_table)
+
+    # --- Safety override layer (prevents illogical actions when RL is untrained) ---
+    safety_overridden = False
+    safety_note = ""
+
+    # If the system believes risk is high, never recommend investing more.
+    if risk_level == "high" and recommendation == "Invest":
+        safety_overridden = True
+        safety_note = "Safety override: high risk -> avoid adding exposure; diversify instead."
+        original_explanation = explanation
+        action = 2
+        recommendation = action_to_text(action)
+        # Avoid returning an RL explanation that contradicts the overridden action.
+        explanation = (
+            "The agent’s learned policy suggested investing, but the current risk level is high, so the decision is adjusted for safety to diversify."
+        )
+
+    # If risk is medium and the model suggests investing, allow but add caution.
+    if risk_level == "medium" and recommendation == "Invest" and not safety_overridden:
+        safety_note = "Caution: signals are medium risk, so keep position sizes small and avoid over-concentration."
+
+    if safety_note:
+        explanation = explanation + " " + safety_note
+
+    recommendation_display = recommendation
+    if safety_overridden:
+        recommendation_display = f"AI Decision (adjusted for safety): {recommendation}"
+
+    # Forecast context: mention notable drivers to keep explanation user-friendly.
+    drivers: list[str] = []
+    try:
+        if float(forecast_data.get("drawdown_7d") or 0.0) > 0.30:
+            drivers.append("elevated drawdown risk")
+        if float(forecast_data.get("vol_spike_7d") or 0.0) > 0.20:
+            drivers.append("higher-than-usual volatility risk")
+        if float(forecast_data.get("anomaly_7d") or 0.0) > 0.20:
+            drivers.append("unusual/anomalous market signals")
+    except Exception:
+        drivers = []
+
+    if drivers:
+        explanation = explanation + " This decision is influenced by forecast signals such as " + ", ".join(drivers) + "."
+    else:
+        explanation = explanation + " This decision is influenced by forecast signals such as drawdown and volatility."
+
+    return {
+        "risk_prob": float(risk_prob),
+        "risk_level": risk_level,
+        "state": int(state),
+        "env_state": int(env_state),
+        "action": int(action),
+        "recommendation": recommendation,
+        "recommendation_display": recommendation_display,
+        "safety_overridden": bool(safety_overridden),
+        "safety_note": safety_note,
+        "explanation": explanation,
+        "original_explanation": locals().get("original_explanation"),
+        "why_not": why_not,
+        "features": features.tolist(),
+    }
+
+
+def apply_feedback(state: int, action: int, reward: float, next_state: int) -> Dict[str, Any]:
+    """Update the RL Q-table from feedback and return the updated table."""
+    q = update_q(state=state, action=action, reward=reward, next_state=next_state)
+    return {"q_table": q.tolist()}
+
+
+def test_real_rl_loop(symbol: str = "TSLA") -> Dict[str, Any]:
+    """End-to-end RL loop example using *real* reward from forecast evolution.
+
+    Steps:
+      1) Load forecast at time t      -> f1
+      2) Make decision using RL       -> d1
+      3) Load forecast at time t+1    -> f2 (previous row in DB)
+      4) reward = compute_reward(f2, f1)
+      5) next_state = forecast_to_state(f1)
+      6) apply_feedback(d1.state, d1.action, reward, next_state)
+
+    RL principle reminder:
+      r_t = R(s_t, a_t, s_{t+1})
+      Here s_t and s_{t+1} are derived from consecutive forecast snapshots.
+    """
+    from database import engine
+    from forecasting.db import get_recent_forecasts
+
+    rows = get_recent_forecasts(engine, symbol=symbol, limit=2)
+    if len(rows) < 2:
+        raise ValueError(f"Need at least 2 forecast rows for {symbol} to compute a transition reward.")
+
+    f1 = rows[0]  # newest
+    f2 = rows[1]  # previous
+
+    d1 = make_decision(f1)
+    reward = compute_reward(f2, f1, action=d1["action"])  # prev -> next (older -> newer)
+    next_state = forecast_to_state(f1)
+
+    update = apply_feedback(d1["state"], d1["action"], reward, next_state)
+    return {"decision": d1, "reward": reward, "next_state": next_state, **update}

@@ -1,18 +1,9 @@
-﻿from __future__ import annotations
-
 import sqlite3
-
 import pandas as pd
 
-from config import DB_PATH
-
-
-conn = sqlite3.connect(str(DB_PATH))
-
-try:
-    df = pd.read_sql("SELECT * FROM market_data ORDER BY asset_type, symbol, date", conn)
-finally:
-    conn.close()
+conn = sqlite3.connect("aegisai.db")
+df = pd.read_sql("SELECT * FROM market_data ORDER BY asset_type, symbol, date", conn)
+conn.close()
 
 with pd.ExcelWriter("market_data.xlsx", engine="openpyxl") as writer:
     df.to_excel(writer, sheet_name="All Data", index=False)
