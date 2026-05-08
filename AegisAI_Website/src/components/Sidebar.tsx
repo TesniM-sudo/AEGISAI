@@ -1,9 +1,9 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import { Home, Wallet, Activity, User, ShieldAlert, Phone, LogOut } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 
-const Sidebar = () => {
+const Sidebar = ({ mobileSidebarOpen, setMobileSidebarOpen }: { mobileSidebarOpen: boolean; setMobileSidebarOpen: (open: boolean) => void }) => {
   const location = useLocation();
 
   const navItems = [
@@ -17,19 +17,23 @@ const Sidebar = () => {
 
   return (
     <motion.aside
-      className="fixed bottom-0 left-0 top-0 z-50 hidden w-64 flex-col border-r border-black/10 bg-background/80 px-6 py-8 backdrop-blur-md dark:border-white/10 lg:flex"
+      className="fixed bottom-0 left-0 top-0 z-50 w-64 flex-col border-r border-black/10 bg-background/80 px-6 py-8 backdrop-blur-md dark:border-white/10 pt-20"
       initial={{ x: -250 }}
-      animate={{ x: 0 }}
+      animate={{ x: mobileSidebarOpen ? 0 : -250 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
       <div className="mb-10 flex items-center justify-center">
-        <Link to="/home">
+        <button onClick={() => setMobileSidebarOpen(false)} className="flex items-center space-x-4 hover:bg-muted/30 rounded-lg p-2 transition-colors" >
           <img
             src="/aegisai-logo.png"
             alt="AegisAI mark"
-            className="h-16 w-auto object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.35)] dark:drop-shadow-[0_0_12px_rgba(37,99,235,0.35)]"
+            style={{ width: "103px", marginLeft: "-45px" }}
+            className="w-auto object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.35)] dark:drop-shadow-[0_0_12px_rgba(37,99,235,0.35)]"
           />
-        </Link>
+          <p className="font-bold uppercase tracking-[0.15em] text-cyan-600 dark:text-cyan-400" style={{ fontSize: "18px", marginLeft: "0px", textShadow: "0 0 12px rgba(6, 182, 212, 0.3)" }}>
+            AEGIS-AI TRADING PLATFORM
+          </p>
+        </button>
       </div>
 
       <div className="flex-1 space-y-2">

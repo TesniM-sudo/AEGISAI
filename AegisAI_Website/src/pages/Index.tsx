@@ -62,7 +62,7 @@ const Index = () => {
 
   return (
     <>
-      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 md:px-10">
+      <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 md:px-10 overflow-x-hidden">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
@@ -159,7 +159,7 @@ const Index = () => {
                 </div>
               </div>
 
-              <div className="mb-4 rounded-[20px] border border-black/10 bg-gradient-to-br from-black/[0.06] via-black/[0.03] to-transparent p-3 dark:border-white/10 dark:from-white/[0.06] dark:via-white/[0.03] sm:p-4">
+              <div className="mb-4 overflow-hidden rounded-[20px] border border-black/10 bg-gradient-to-br from-black/[0.06] via-black/[0.03] to-transparent p-3 dark:border-white/10 dark:from-white/[0.06] dark:via-white/[0.03] sm:p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Price momentum</p>
                   <div className="flex items-center gap-1">
@@ -173,8 +173,8 @@ const Index = () => {
                     ))}
                   </div>
                 </div>
-                <div className="h-44">
-                  <svg viewBox="0 0 360 170" className="h-full w-full">
+                <div className="h-44 w-full overflow-hidden">
+                  <svg viewBox="0 0 360 170" className="h-full w-full overflow-hidden" preserveAspectRatio="none">
                     <defs>
                       <linearGradient id="featuredLine" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" stopColor={featuredAsset.color} stopOpacity="0.95" />
@@ -193,11 +193,11 @@ const Index = () => {
                       <line x1="0" y1="140" x2="360" y2="140" />
                     </g>
                     <path
-                      d={`M 10 128 C 42 124, 58 ${100 - (featuredAsset.sparkData[3] || 0) * 0.35}, 86 ${104 - (featuredAsset.sparkData[6] || 0) * 0.34} C 124 ${112 - (featuredAsset.sparkData[10] || 0) * 0.36}, 160 ${108 - (featuredAsset.sparkData[14] || 0) * 0.34}, 196 ${95 - (featuredAsset.sparkData[18] || 0) * 0.34} C 232 ${98 - (featuredAsset.sparkData[22] || 0) * 0.32}, 270 ${80 - (featuredAsset.sparkData[25] || 0) * 0.3}, 340 ${72 - (featuredAsset.sparkData[Math.min(29, featuredAsset.sparkData.length - 1)] || 0) * 0.3} L 340 170 L 10 170 Z`}
+                      d={`M 10 128 C 42 124, 58 ${140 - ((featuredAsset.sparkData[3] || 0) / Math.max(...featuredAsset.sparkData) * 100)}, 86 ${140 - ((featuredAsset.sparkData[6] || 0) / Math.max(...featuredAsset.sparkData) * 100)} C 124 ${140 - ((featuredAsset.sparkData[10] || 0) / Math.max(...featuredAsset.sparkData) * 100)}, 160 ${140 - ((featuredAsset.sparkData[14] || 0) / Math.max(...featuredAsset.sparkData) * 100)}, 196 ${140 - ((featuredAsset.sparkData[18] || 0) / Math.max(...featuredAsset.sparkData) * 100)} C 232 ${140 - ((featuredAsset.sparkData[22] || 0) / Math.max(...featuredAsset.sparkData) * 100)}, 270 ${140 - ((featuredAsset.sparkData[25] || 0) / Math.max(...featuredAsset.sparkData) * 100)}, 340 ${140 - ((featuredAsset.sparkData[Math.min(29, featuredAsset.sparkData.length - 1)] || 0) / Math.max(...featuredAsset.sparkData) * 100)} L 340 170 L 10 170 Z`}
                       fill="url(#featuredArea)"
                     />
                     <path
-                      d={`M 10 128 C 42 124, 58 ${100 - (featuredAsset.sparkData[3] || 0) * 0.35}, 86 ${104 - (featuredAsset.sparkData[6] || 0) * 0.34} C 124 ${112 - (featuredAsset.sparkData[10] || 0) * 0.36}, 160 ${108 - (featuredAsset.sparkData[14] || 0) * 0.34}, 196 ${95 - (featuredAsset.sparkData[18] || 0) * 0.34} C 232 ${98 - (featuredAsset.sparkData[22] || 0) * 0.32}, 270 ${80 - (featuredAsset.sparkData[25] || 0) * 0.3}, 340 ${72 - (featuredAsset.sparkData[Math.min(29, featuredAsset.sparkData.length - 1)] || 0) * 0.3}`}
+                      d={`M 10 128 C 42 124, 58 ${140 - ((featuredAsset.sparkData[3] || 0) / Math.max(...featuredAsset.sparkData) * 100)}, 86 ${140 - ((featuredAsset.sparkData[6] || 0) / Math.max(...featuredAsset.sparkData) * 100)} C 124 ${140 - ((featuredAsset.sparkData[10] || 0) / Math.max(...featuredAsset.sparkData) * 100)}, 160 ${140 - ((featuredAsset.sparkData[14] || 0) / Math.max(...featuredAsset.sparkData) * 100)}, 196 ${140 - ((featuredAsset.sparkData[18] || 0) / Math.max(...featuredAsset.sparkData) * 100)} C 232 ${140 - ((featuredAsset.sparkData[22] || 0) / Math.max(...featuredAsset.sparkData) * 100)}, 270 ${140 - ((featuredAsset.sparkData[25] || 0) / Math.max(...featuredAsset.sparkData) * 100)}, 340 ${140 - ((featuredAsset.sparkData[Math.min(29, featuredAsset.sparkData.length - 1)] || 0) / Math.max(...featuredAsset.sparkData) * 100)}`}
                       fill="none"
                       stroke="url(#featuredLine)"
                       strokeWidth="4"

@@ -191,7 +191,7 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
             className="animate-pulse"
           />
           <rect
-            x={plotRight + 2}
+            x={plotRight - 42}
             y={yScale(candles[candles.length - 1].close) - 8}
             width={40}
             height={16}
@@ -199,7 +199,7 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
             fill={color}
           />
           <text
-            x={plotRight + 22}
+            x={plotRight - 22}
             y={yScale(candles[candles.length - 1].close) + 4}
             fill="black"
             fontSize={9}
@@ -224,7 +224,12 @@ const CandlestickChart = ({ color, candles: providedCandles, width = 600, height
             strokeWidth={1}
             strokeDasharray="4 4"
           />
-          <foreignObject x={width - 180} y={20} width={160} height={140}>
+          <foreignObject 
+            x={Math.max(plotLeft, Math.min(width - 180, xCenter(hoveredIndex) - 80))} 
+            y={20} 
+            width={160} 
+            height={140}
+          >
             <div className="rounded-xl border border-white/10 bg-black/90 p-3 shadow-2xl backdrop-blur-xl">
               <div className="mb-2 flex items-center justify-between border-b border-white/5 pb-1">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{formatDateTime(hovered.date)}</span>

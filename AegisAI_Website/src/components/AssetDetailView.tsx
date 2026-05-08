@@ -119,7 +119,7 @@ const AssetDetailView = ({ asset, onClose }: AssetDetailViewProps) => {
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           style={{ perspective: 1200 }}
         >
-          <div className="glass-card flex flex-1 flex-col overflow-y-auto md:rounded-3xl">
+          <div className="glass-card flex flex-1 flex-col overflow-y-auto overflow-x-hidden md:rounded-3xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/20 bg-background/70 p-4 backdrop-blur md:p-5">
               <div className="flex items-center gap-3">
                 <div className="h-3 w-3 rounded-full" style={{ background: asset.color }} />
