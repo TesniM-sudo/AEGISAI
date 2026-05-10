@@ -225,8 +225,8 @@ The chatbot recognizes common names:
 
 ## 👩‍💻 Authors
 
-- **Tesnim** — Backend, ML pipeline, AI chatbot
-- **Anas** — Backend , Frontend
+- **Tesnim** — ML pipeline,Reinforcement learning training, AI chatbot
+- **Anas** — Backend 
 - **Islem**_Frontend design and React components
 
 ---
