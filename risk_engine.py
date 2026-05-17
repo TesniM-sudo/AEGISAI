@@ -1,7 +1,11 @@
-import pandas as pd
+﻿import pandas as pd
 from database import engine
 from sklearn.ensemble import IsolationForest
 import joblib
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parent
 
 
 def train_model():
@@ -14,7 +18,7 @@ def train_model():
 
     if X.empty:
         print("No data available for training.")
-        return
+        return None
 
     # 3) Train model
     model = IsolationForest(
@@ -52,6 +56,8 @@ def train_model():
     )
 
     # 7) Save model
-    joblib.dump(model, "risk_model.pkl")
+    joblib.dump(model, BASE_DIR / "risk_model.pkl")
 
-    print("✅ Risk model trained; predictions saved.")
+    print("[OK] Risk model trained; predictions saved.")
+    return model
+

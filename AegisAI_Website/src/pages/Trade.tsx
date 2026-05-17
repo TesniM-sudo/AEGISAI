@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+﻿import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,6 +18,10 @@ const loadSession = (): SessionData | null => {
   try {
     const parsed = JSON.parse(raw) as SessionData;
     if (!parsed?.email || !parsed?.role || !parsed?.sessionToken) return null;
+    if (parsed.sessionToken.startsWith("mock-session-token-") || parsed.sessionToken.startsWith("local-")) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
     return parsed;
   } catch {
     return null;
@@ -409,3 +413,4 @@ const Trade = () => {
 };
 
 export default Trade;
+

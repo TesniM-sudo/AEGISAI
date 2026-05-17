@@ -7,9 +7,13 @@
 
 # ML models
 *.pkl
+*.joblib
 
 # Data files
 *.xlsx
+
+# Frontend/package manager cache
+AegisAI_Website/.npm-cache/
 
 # Python cache
 __pycache__/
@@ -22,3 +26,10 @@ __pycache__/
 # Pytest cache
 .pytest_cache/
 .env
+
+# Runtime logs and backup copies
+*.log
+*.bak
+*.bak2
+*.backup
+*.bak_*

@@ -1,8 +1,13 @@
+﻿from pathlib import Path
+
 from sqlalchemy import create_engine, Column, Integer, String, Float, Date, UniqueConstraint
 from sqlalchemy.orm import declarative_base
 
-# Create SQLite database
-engine = create_engine("sqlite:///aegisai.db", echo=False)
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "aegisai.db"
+
+# Create SQLite database using an absolute path so npm/vite cwd does not matter.
+engine = create_engine(f"sqlite:///{DB_PATH.as_posix()}", echo=False)
 
 # Define Base
 Base = declarative_base()

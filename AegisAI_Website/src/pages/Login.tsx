@@ -1,37 +1,62 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 
+const SESSION_KEY = "aegis_account_session_v2";
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
+
+type LoginResponse = {
+  session: {
+    email: string;
+    role: "admin" | "user";
+    sessionToken: string;
+  };
+};
+
 const Login = () => {
   const [email, setEmail] = useState("admin@aegisai.com");
   const [password, setPassword] = useState("admin123");
+  const [error, setError] = useState("");
+  const [isBusy, setIsBusy] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Set a mock session in localStorage so that other pages recognize the user as logged in
-    const sessionData = {
-      email,
-      role: "trader",
-      sessionToken: "mock-session-token-" + Date.now(),
-    };
-    localStorage.setItem("aegis_account_session_v2", JSON.stringify(sessionData));
+    setError("");
+    setIsBusy(true);
 
-    navigate("/home");
+    try {
+      const response = await fetch(`${API_BASE}/account/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password: password.trim() }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as Partial<LoginResponse> & { detail?: string };
+
+      if (!response.ok || !payload.session?.sessionToken) {
+        throw new Error(payload.detail || "Login failed.");
+      }
+
+      localStorage.setItem(SESSION_KEY, JSON.stringify(payload.session));
+      navigate("/home");
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Login failed.");
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12">
       {/* Background effects matching Layout.tsx */}
-      <div 
+      <div
         className="fixed inset-0 bg-image-overlay pointer-events-none z-0"
         style={{ backgroundImage: 'url("/terminal-bg.png")' }}
       />
       <div className="pointer-events-none fixed inset-0 cyber-grid z-0" />
       <div className="pointer-events-none fixed inset-0 hud-scanlines opacity-[0.4] z-0" />
-      
+
       {/* Glass Orbs for background glow */}
       <div className="pointer-events-none fixed left-[10%] top-[10%] h-[500px] w-[500px] rounded-full glass-orb opacity-[0.15] z-0" />
       <div className="pointer-events-none fixed right-[-5%] bottom-[10%] h-[400px] w-[400px] rounded-full glass-orb opacity-[0.1] [--primary:270_80%_60%] z-0" />
@@ -82,7 +107,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="w-full rounded-2xl border border-white/10 bg-black/10 px-4 py-3 pl-11 text-sm text-foreground transition-colors placeholder:text-muted-foreground/50 focus:border-cyan-500/50 focus:bg-black/20 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 dark:bg-white/5 dark:focus:bg-white/10"
-                placeholder="••••••••"
+                placeholder="Password"
               />
             </div>
           </div>
@@ -95,11 +120,14 @@ const Login = () => {
             <a href="#" className="text-cyan-400 hover:text-cyan-300 transition-colors">Forgot password?</a>
           </div>
 
+          {error && <p className="text-sm text-red-300">{error}</p>}
+
           <button
             type="submit"
-            className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-cyan-500 px-8 py-4 text-sm font-bold uppercase tracking-wider text-black transition-all hover:bg-cyan-400 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-background money-glow-emerald mt-6"
+            disabled={isBusy}
+            className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-cyan-500 px-8 py-4 text-sm font-bold uppercase tracking-wider text-black transition-all hover:bg-cyan-400 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-background money-glow-emerald mt-6 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            <span className="relative z-10">Access Platform</span>
+            <span className="relative z-10">{isBusy ? "Signing In..." : "Access Platform"}</span>
             <ArrowRight size={18} className="relative z-10 transition-transform group-hover:translate-x-1" />
             <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-500 group-hover:translate-x-full" />
           </button>

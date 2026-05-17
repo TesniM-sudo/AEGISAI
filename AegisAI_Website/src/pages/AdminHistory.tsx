@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { cryptoAssets } from "@/data/cryptoData";
 import type { AdminAccountsResponse, SessionData } from "@/lib/portfolioStorage";
@@ -36,6 +36,10 @@ const loadSession = (): SessionData | null => {
   try {
     const parsed = JSON.parse(raw) as SessionData;
     if (!parsed?.email || !parsed?.role || !parsed?.sessionToken) return null;
+    if (parsed.sessionToken.startsWith("mock-session-token-") || parsed.sessionToken.startsWith("local-")) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
     return parsed;
   } catch {
     return null;
@@ -388,3 +392,4 @@ const AdminHistory = () => {
 };
 
 export default AdminHistory;
+

@@ -40,6 +40,12 @@ def update_market_data() -> dict:
             )
             last_date = result.iloc[0]["last_date"]
             start_date = _next_start_date(last_date)
+            start_dt = pd.to_datetime(start_date).date()
+
+            if start_dt > date.today():
+                print(f"  {symbol}: Already up to date through {last_date}.")
+                per_symbol[symbol] = 0
+                continue
 
             data = None
             for attempt in range(3):

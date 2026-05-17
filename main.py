@@ -9,6 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import io
 import math
+import yfinance as yf
 
 # Chatbot imports
 from config import API_TITLE
@@ -289,6 +290,21 @@ def risk_graph(symbol: str, limit: int = 200):
     return StreamingResponse(buffer, media_type="image/png")
 
 # ── Dashboard Endpoints ──────────────────────────────────────────────────────
+def _live_quote(symbol: str) -> tuple[float | None, float | None]:
+    try:
+        info = yf.Ticker(symbol).fast_info
+        price = info.get("last_price")
+        previous_close = info.get("previous_close")
+        if price is None or previous_close in (None, 0):
+            return None, None
+        price_value = float(price)
+        previous_value = float(previous_close)
+        change_pct = ((price_value - previous_value) / previous_value) * 100
+        return price_value, change_pct
+    except Exception:
+        return None, None
+
+
 @app.get("/dashboard/assets")
 def dashboard_assets():
     SYMBOL_META = {
@@ -310,6 +326,11 @@ def dashboard_assets():
             latest_close = float(df.iloc[0]["close"])
             prev_close = float(df.iloc[1]["close"]) if len(df) > 1 else latest_close
             change_pct = ((latest_close - prev_close) / prev_close) * 100 if prev_close else 0
+            display_price, live_change_pct = _live_quote(symbol)
+            if display_price is None:
+                display_price = latest_close
+            if live_change_pct is not None:
+                change_pct = live_change_pct
 
             spark_df = pd.read_sql(text("""
                 SELECT close FROM market_data
@@ -328,7 +349,7 @@ def dashboard_assets():
                 "symbol": symbol,
                 "name": meta["name"],
                 "portfolio_fit": "Tracked in project dataset",
-                "price": latest_close,
+                "price": display_price,
                 "change_pct": round(change_pct, 2),
                 "spark_data": spark_data,
                 "color": meta["color"],
