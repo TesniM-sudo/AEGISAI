@@ -13,6 +13,7 @@
 *.xlsx
 
 # Frontend/package manager cache
+node_modules/
 AegisAI_Website/.npm-cache/
 
 # Python cache
