@@ -31,7 +31,7 @@ const Sidebar = ({ mobileSidebarOpen, setMobileSidebarOpen }: { mobileSidebarOpe
             className="w-auto object-contain drop-shadow-[0_0_12px_rgba(37,99,235,0.35)] dark:drop-shadow-[0_0_12px_rgba(37,99,235,0.35)]"
           />
           <p className="font-bold uppercase tracking-[0.15em] text-cyan-600 dark:text-cyan-400" style={{ fontSize: "18px", marginLeft: "0px", textShadow: "0 0 12px rgba(6, 182, 212, 0.3)" }}>
-            AEGIS-AI TRADING PLATFORM
+            AEGIS-AI
           </p>
         </button>
       </div>
