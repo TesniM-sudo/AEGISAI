@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "";
 const CHAT_URL = `${API_BASE}/chat`;
 
 interface CryptoChatProps {

@@ -22,7 +22,7 @@ export interface CandlePoint {
   volume?: number | null;
 }
 
-const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "";
 
 const formatPrice = (symbol: string, value: number) => {
   if (symbol.includes("=X")) {

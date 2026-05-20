@@ -7,9 +7,22 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 8000,
+    strictPort: true,
     hmr: {
       overlay: false,
+    },
+    proxy: {
+      "/chat": "http://127.0.0.1:8010",
+      "/dashboard": "http://127.0.0.1:8010",
+      "/get-data": "http://127.0.0.1:8010",
+      "/get-features": "http://127.0.0.1:8010",
+      "/risk": "http://127.0.0.1:8010",
+      "/predict": "http://127.0.0.1:8010",
+      "/graph": "http://127.0.0.1:8010",
+      "/admin": "http://127.0.0.1:8010",
+      "/account": "http://127.0.0.1:8010",
+      "/health": "http://127.0.0.1:8010",
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
