@@ -26,6 +26,10 @@ export type HistoryEntry = {
   quantity: number;
   price: number;
   total: number;
+  entryPrice?: number | null;
+  exitPrice?: number | null;
+  realizedPnl?: number | null;
+  returnPct?: number | null;
   note?: string | null;
 };
 

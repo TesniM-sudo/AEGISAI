@@ -1,4 +1,4 @@
-import { Toaster } from "@/components/ui/toaster";
+﻿import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Account from "./pages/Account";
 import AdminHistory from "./pages/AdminHistory";
+import AccountHistoryDetail from "./pages/AccountHistoryDetail";
 import Trade from "./pages/Trade";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/account" element={<Account />} />
               <Route path="/admin/history" element={<AdminHistory />} />
+              <Route path="/admin/history/:email" element={<AccountHistoryDetail />} />
               <Route path="/trade" element={<Trade />} />
               <Route path="/contact" element={<Contact />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
@@ -46,3 +48,5 @@ const App = () => (
 );
 
 export default App;
+
+
