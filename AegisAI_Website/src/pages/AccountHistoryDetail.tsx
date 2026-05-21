@@ -114,9 +114,12 @@ const AccountHistoryDetail = () => {
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [account]);
 
-  const totalVolume = useMemo(() => rows.reduce((sum, row) => sum + row.total, 0), [rows]);
   const buyCount = useMemo(() => rows.filter((row) => row.side === "buy").length, [rows]);
   const sellCount = useMemo(() => rows.filter((row) => row.side === "sell").length, [rows]);
+  const realizedPnl = useMemo(
+    () => rows.reduce((sum, row) => sum + (row.realizedPnl ?? 0), 0),
+    [rows],
+  );
 
   return (
     <section className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-12 pt-10 sm:px-6 md:px-10">
@@ -159,8 +162,10 @@ const AccountHistoryDetail = () => {
             <p className="mt-2 text-2xl font-semibold text-amber-200">{sellCount}</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Notional</p>
-            <p className="mt-2 text-2xl font-semibold text-foreground">${totalVolume.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">Realized P&L</p>
+            <p className="mt-2 text-2xl font-semibold" style={{ color: realizedPnl >= 0 ? "hsl(142 70% 50%)" : "hsl(0 70% 55%)" }}>
+              {realizedPnl >= 0 ? "+" : "-"}${Math.abs(realizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </p>
           </div>
         </div>
 
@@ -174,14 +179,16 @@ const AccountHistoryDetail = () => {
                   <th className="px-4 py-3 font-medium">Symbol</th>
                   <th className="px-4 py-3 font-medium">Side</th>
                   <th className="px-4 py-3 font-medium">Quantity</th>
-                  <th className="px-4 py-3 font-medium">Price</th>
+                  <th className="px-4 py-3 font-medium">Entry</th>
+                  <th className="px-4 py-3 font-medium">Exit</th>
+                  <th className="px-4 py-3 font-medium">P&L</th>
                   <th className="px-4 py-3 font-medium">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">Loading account history...</td>
+                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-muted-foreground">Loading account history...</td>
                   </tr>
                 ) : rows.length ? (
                   rows.map((row) => (
@@ -201,7 +208,22 @@ const AccountHistoryDetail = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 align-top">{row.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
-                      <td className="px-4 py-3 align-top">${row.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+                      <td className="px-4 py-3 align-top">${(row.entryPrice ?? row.price).toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+                      <td className="px-4 py-3 align-top">
+                        {row.exitPrice ? `$${row.exitPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : "Open"}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        {row.realizedPnl !== null && row.realizedPnl !== undefined ? (
+                          <div style={{ color: row.realizedPnl >= 0 ? "hsl(142 70% 50%)" : "hsl(0 70% 55%)" }}>
+                            {row.realizedPnl >= 0 ? "+" : "-"}${Math.abs(row.realizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            {row.returnPct !== null && row.returnPct !== undefined ? (
+                              <div className="text-xs opacity-80">{row.returnPct >= 0 ? "+" : ""}{row.returnPct.toFixed(2)}%</div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Pending close</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 align-top">
                         <div>${row.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                         {row.note ? <div className="text-xs text-muted-foreground">{row.note}</div> : null}
@@ -210,7 +232,7 @@ const AccountHistoryDetail = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">No trade history for this account.</td>
+                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-muted-foreground">No trade history for this account.</td>
                   </tr>
                 )}
               </tbody>

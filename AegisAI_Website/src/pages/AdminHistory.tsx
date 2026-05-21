@@ -15,6 +15,10 @@ type HistoryRow = {
   quantity: number;
   price: number;
   total: number;
+  entryPrice?: number | null;
+  exitPrice?: number | null;
+  realizedPnl?: number | null;
+  returnPct?: number | null;
   note?: string | null;
   assetName: string;
   assetType: "stock" | "crypto" | "forex" | "other";
@@ -115,6 +119,7 @@ const AdminHistory = () => {
                 quantity: 15,
                 price: 184.36,
                 total: 2765.40,
+                entryPrice: 184.36,
                 note: "AI detected momentum shift",
               },
               {
@@ -124,6 +129,7 @@ const AdminHistory = () => {
                 quantity: 0.15,
                 price: 83420.00,
                 total: 12513.00,
+                entryPrice: 83420.00,
                 note: "Accumulation phase",
               }
             ]
@@ -140,6 +146,10 @@ const AdminHistory = () => {
                 quantity: 100,
                 price: 214.82,
                 total: 21482.00,
+                entryPrice: 198.50,
+                exitPrice: 214.82,
+                realizedPnl: 1632.00,
+                returnPct: 8.22,
                 note: "Taking profits",
               }
             ]
@@ -160,6 +170,10 @@ const AdminHistory = () => {
             quantity: entry.quantity,
             price: entry.price,
             total: entry.total,
+            entryPrice: entry.entryPrice ?? entry.price,
+            exitPrice: entry.exitPrice ?? null,
+            realizedPnl: entry.realizedPnl ?? null,
+            returnPct: entry.returnPct ?? null,
             note: entry.note,
             assetName: meta.name,
             assetType: meta.assetType,
@@ -339,14 +353,16 @@ const AdminHistory = () => {
                   <th className="px-4 py-3 font-medium">Symbol</th>
                   <th className="px-4 py-3 font-medium">Side</th>
                   <th className="px-4 py-3 font-medium">Quantity</th>
-                  <th className="px-4 py-3 font-medium">Price</th>
+                  <th className="px-4 py-3 font-medium">Entry</th>
+                  <th className="px-4 py-3 font-medium">Exit</th>
+                  <th className="px-4 py-3 font-medium">P&L</th>
                   <th className="px-4 py-3 font-medium">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">Loading history...</td>
+                    <td colSpan={10} className="px-4 py-10 text-center text-sm text-muted-foreground">Loading history...</td>
                   </tr>
                 ) : filteredRows.length ? (
                   filteredRows.map((row) => (
@@ -370,7 +386,22 @@ const AdminHistory = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 align-top">{row.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
-                      <td className="px-4 py-3 align-top">${row.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+                      <td className="px-4 py-3 align-top">${(row.entryPrice ?? row.price).toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+                      <td className="px-4 py-3 align-top">
+                        {row.exitPrice ? `$${row.exitPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : "Open"}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        {row.realizedPnl !== null && row.realizedPnl !== undefined ? (
+                          <div style={{ color: row.realizedPnl >= 0 ? "hsl(142 70% 50%)" : "hsl(0 70% 55%)" }}>
+                            {row.realizedPnl >= 0 ? "+" : "-"}${Math.abs(row.realizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            {row.returnPct !== null && row.returnPct !== undefined ? (
+                              <div className="text-xs opacity-80">{row.returnPct >= 0 ? "+" : ""}{row.returnPct.toFixed(2)}%</div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Pending close</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 align-top">
                         <div>${row.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
                         {row.note ? <div className="text-xs text-muted-foreground">{row.note}</div> : null}
@@ -379,7 +410,7 @@ const AdminHistory = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">No trades match the current filters.</td>
+                    <td colSpan={10} className="px-4 py-10 text-center text-sm text-muted-foreground">No trades match the current filters.</td>
                   </tr>
                 )}
               </tbody>

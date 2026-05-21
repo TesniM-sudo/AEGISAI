@@ -667,16 +667,17 @@ const Account = () => {
                     portfolio.holdings.map((holding) => {
                       const currentPrice = priceBySymbol[holding.symbol] || 0;
                       const pnl = (currentPrice - holding.avgPrice) * holding.quantity;
+                      const returnPct = holding.avgPrice > 0 ? ((currentPrice - holding.avgPrice) / holding.avgPrice) * 100 : 0;
                       return (
                         <div key={holding.symbol} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
                           <div className="flex items-center justify-between">
                             <p className="text-sm font-semibold text-foreground">{holding.symbol}</p>
                             <p className="text-xs font-medium" style={{ color: pnl >= 0 ? "hsl(142 70% 50%)" : "hsl(0 70% 55%)" }}>
-                              {pnl >= 0 ? "+" : "-"}${Math.abs(pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                              {pnl >= 0 ? "+" : "-"}${Math.abs(pnl).toLocaleString(undefined, { maximumFractionDigits: 2 })} ({returnPct >= 0 ? "+" : ""}{returnPct.toFixed(2)}%)
                             </p>
                           </div>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Qty: {holding.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })} - Avg: ${holding.avgPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                            Qty: {holding.quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })} - Entry: ${holding.avgPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })} - Current: ${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
                           </p>
                         </div>
                       );
@@ -862,11 +863,18 @@ const Account = () => {
                                   .slice()
                                   .reverse()
                                   .slice(0, 5)
-                                  .map((entry) => (
-                                    <div key={`${entry.timestamp}-${entry.side}-${entry.symbol}-${entry.quantity}`} className="rounded-lg border border-cyan-300/15 bg-cyan-300/5 px-3 py-2 text-xs text-cyan-100/90">
-                                      {new Date(entry.timestamp).toLocaleString()} | {entry.side.toUpperCase()} {entry.quantity} {entry.symbol} @ ${entry.price.toLocaleString(undefined, { maximumFractionDigits: 4 })}
-                                    </div>
-                                  ))}
+                                  .map((entry) => {
+                                    const entryPrice = entry.entryPrice ?? entry.price;
+                                    const exitPrice = entry.exitPrice;
+                                    const realizedPnl = entry.realizedPnl;
+                                    return (
+                                      <div key={`${entry.timestamp}-${entry.side}-${entry.symbol}-${entry.quantity}`} className="rounded-lg border border-cyan-300/15 bg-cyan-300/5 px-3 py-2 text-xs text-cyan-100/90">
+                                        {new Date(entry.timestamp).toLocaleString()} | {entry.side.toUpperCase()} {entry.quantity} {entry.symbol} | Entry ${entryPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                                        {exitPrice ? ` -> Exit $${exitPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : ""}
+                                        {realizedPnl !== null && realizedPnl !== undefined ? ` | P&L ${realizedPnl >= 0 ? "+" : "-"}$${Math.abs(realizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : ""}
+                                      </div>
+                                    );
+                                  })}
                               </div>
                               {userItem.history.length > 5 && (
                                 <div className="mt-3 flex justify-end">

@@ -165,6 +165,14 @@ const Trade = () => {
   }, [selectedSymbol, timeframe]);
 
   const selectedPrice = priceBySymbol[selectedSymbol] || 0;
+  const selectedHolding = portfolio?.holdings.find((holding) => holding.symbol === selectedSymbol) ?? null;
+  const estimatedValue = Math.max(Number(quantity) || 0, 0) * selectedPrice;
+  const estimatedRealizedPnl =
+    side === "sell" && selectedHolding ? (selectedPrice - selectedHolding.avgPrice) * Math.max(Number(quantity) || 0, 0) : null;
+  const estimatedReturnPct =
+    side === "sell" && selectedHolding && selectedHolding.avgPrice > 0
+      ? ((selectedPrice - selectedHolding.avgPrice) / selectedHolding.avgPrice) * 100
+      : null;
 
   const executeTrade = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -196,6 +204,11 @@ const Trade = () => {
       const holdingIndex = nextPortfolio.holdings.findIndex((holding) => holding.symbol === selectedSymbol);
       const existingHolding = holdingIndex >= 0 ? nextPortfolio.holdings[holdingIndex] : null;
 
+      let entryPrice = selectedPrice;
+      let exitPrice: number | null = null;
+      let realizedPnl: number | null = null;
+      let returnPct: number | null = null;
+
       if (side === "buy") {
         const cost = qty * selectedPrice;
         if (cost > nextPortfolio.cash) throw new Error("Not enough cash for this buy order.");
@@ -214,6 +227,10 @@ const Trade = () => {
         }
       } else {
         if (!existingHolding || existingHolding.quantity < qty) throw new Error("Not enough holdings to sell this quantity.");
+        entryPrice = existingHolding.avgPrice;
+        exitPrice = selectedPrice;
+        realizedPnl = (exitPrice - entryPrice) * qty;
+        returnPct = entryPrice > 0 ? ((exitPrice - entryPrice) / entryPrice) * 100 : null;
         nextPortfolio.cash += qty * selectedPrice;
         const remaining = existingHolding.quantity - qty;
         if (remaining <= 0) {
@@ -230,6 +247,11 @@ const Trade = () => {
         quantity: qty,
         price: selectedPrice,
         total: qty * selectedPrice,
+        entryPrice,
+        exitPrice,
+        realizedPnl,
+        returnPct,
+        note: side === "buy" ? "Entry price recorded" : "Investment closed",
       };
 
       const saved = await savePortfolio(session.email, session.sessionToken, nextPortfolio, historyEntry);
@@ -302,7 +324,35 @@ const Trade = () => {
               </div>
 
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-muted-foreground">
-                Estimated value: ${(Math.max(Number(quantity) || 0, 0) * selectedPrice).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                Estimated value: ${estimatedValue.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Entry price</p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    ${(side === "sell" && selectedHolding ? selectedHolding.avgPrice : selectedPrice).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Exit price</p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    {side === "sell" ? `$${selectedPrice.toLocaleString(undefined, { maximumFractionDigits: 4 })}` : "Set when sold"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Est. close P&L</p>
+                  <p
+                    className="mt-2 text-sm font-semibold"
+                    style={{ color: (estimatedRealizedPnl ?? 0) >= 0 ? "hsl(142 70% 50%)" : "hsl(0 70% 55%)" }}
+                  >
+                    {estimatedRealizedPnl === null
+                      ? "Open"
+                      : `${estimatedRealizedPnl >= 0 ? "+" : "-"}$${Math.abs(estimatedRealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}${
+                          estimatedReturnPct === null ? "" : ` (${estimatedReturnPct >= 0 ? "+" : ""}${estimatedReturnPct.toFixed(2)}%)`
+                        }`}
+                  </p>
+                </div>
               </div>
 
               {tradeError && <p className="text-sm text-red-300">{tradeError}</p>}

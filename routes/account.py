@@ -45,6 +45,10 @@ class HistoryEntry(BaseModel):
     quantity: float
     price: float
     total: float
+    entryPrice: float | None = None
+    exitPrice: float | None = None
+    realizedPnl: float | None = None
+    returnPct: float | None = None
     note: str | None = None
 
 
@@ -188,6 +192,10 @@ def _create_account_tables(conn: sqlite3.Connection) -> None:
             quantity REAL NOT NULL,
             price REAL NOT NULL,
             total REAL NOT NULL,
+            entry_price REAL,
+            exit_price REAL,
+            realized_pnl REAL,
+            return_pct REAL,
             note TEXT
         );
 
@@ -204,6 +212,20 @@ def _create_account_tables(conn: sqlite3.Connection) -> None:
         );
         """
     )
+
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(account_history)").fetchall()
+    }
+    column_definitions = {
+        "entry_price": "REAL",
+        "exit_price": "REAL",
+        "realized_pnl": "REAL",
+        "return_pct": "REAL",
+    }
+    for column_name, column_type in column_definitions.items():
+        if column_name not in columns:
+            conn.execute(f"ALTER TABLE account_history ADD COLUMN {column_name} {column_type}")
 
 
 def _read_json_store() -> dict:
@@ -255,8 +277,8 @@ def _migrate_json_store(conn: sqlite3.Connection) -> None:
             conn.execute(
                 """
                 INSERT INTO account_history
-                    (email, timestamp, side, symbol, quantity, price, total, note)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    (email, timestamp, side, symbol, quantity, price, total, entry_price, exit_price, realized_pnl, return_pct, note)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     email,
@@ -266,6 +288,10 @@ def _migrate_json_store(conn: sqlite3.Connection) -> None:
                     float(entry.get("quantity") or 0),
                     float(entry.get("price") or 0),
                     float(entry.get("total") or 0),
+                    entry.get("entryPrice"),
+                    entry.get("exitPrice"),
+                    entry.get("realizedPnl"),
+                    entry.get("returnPct"),
                     entry.get("note"),
                 ),
             )
@@ -299,7 +325,18 @@ def _ensure_account_tables() -> None:
 def _history_for_email(conn: sqlite3.Connection, email: str) -> list[dict]:
     rows = conn.execute(
         """
-        SELECT timestamp, side, symbol, quantity, price, total, note
+        SELECT
+            timestamp,
+            side,
+            symbol,
+            quantity,
+            price,
+            total,
+            entry_price AS entryPrice,
+            exit_price AS exitPrice,
+            realized_pnl AS realizedPnl,
+            return_pct AS returnPct,
+            note
         FROM account_history
         WHERE email = ?
         ORDER BY id
@@ -400,8 +437,8 @@ def _append_history(conn: sqlite3.Connection, email: str, entry: dict) -> None:
     conn.execute(
         """
         INSERT INTO account_history
-            (email, timestamp, side, symbol, quantity, price, total, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (email, timestamp, side, symbol, quantity, price, total, entry_price, exit_price, realized_pnl, return_pct, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             _normalize_email(email),
@@ -411,6 +448,10 @@ def _append_history(conn: sqlite3.Connection, email: str, entry: dict) -> None:
             float(entry["quantity"]),
             float(entry["price"]),
             float(entry["total"]),
+            entry.get("entryPrice"),
+            entry.get("exitPrice"),
+            entry.get("realizedPnl"),
+            entry.get("returnPct"),
             entry.get("note"),
         ),
     )
