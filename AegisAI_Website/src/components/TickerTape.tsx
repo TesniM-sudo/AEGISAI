@@ -1,27 +1,58 @@
+import { useEffect, useState } from "react";
+
 import { cryptoAssets } from "@/data/cryptoData";
+import { fetchDashboardAssets, type DashboardAsset } from "@/lib/marketApi";
 
 const TickerTape = () => {
-  // Triple the assets to ensure smooth infinite loop
-  const tickerItems = [...cryptoAssets, ...cryptoAssets, ...cryptoAssets];
+  const [assets, setAssets] = useState<DashboardAsset[]>(cryptoAssets);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAssets = async () => {
+      try {
+        const liveAssets = await fetchDashboardAssets();
+        if (isMounted && liveAssets.length > 0) {
+          setAssets(liveAssets);
+        }
+      } catch (error) {
+        console.warn("Ticker API unavailable, using fallback prices:", error);
+      }
+    };
+
+    loadAssets();
+    const intervalId = window.setInterval(loadAssets, 60_000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const tickerItems = [...assets, ...assets];
 
   return (
     <div className="ticker-wrap border-b border-white/5 bg-black/60 shadow-lg">
-      <div className="ticker-move">
+      <ul className="ticker-move" aria-label="Market ticker">
         {tickerItems.map((asset, index) => (
-          <div key={`${asset.symbol}-${index}`} className="flex items-center gap-6">
-            <span className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">{asset.symbol}</span>
-              <span className="text-xs font-bold font-mono text-foreground">{asset.price}</span>
-              <span 
-                className={`text-[10px] font-bold ${asset.changePositive ? "text-emerald-400" : "text-rose-500"}`}
-              >
-                {asset.changePositive ? "▲" : "▼"} {asset.change}
-              </span>
+          <li key={`${asset.symbol}-${index}`} className="ticker-item">
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70">
+              {asset.symbol}
             </span>
-            <div className="h-1 w-1 rounded-full bg-white/10" />
-          </div>
+            <span className="font-mono text-xs font-bold tabular-nums text-foreground">
+              {asset.price}
+            </span>
+            <span
+              className={`text-[10px] font-bold tabular-nums ${
+                asset.changePositive ? "text-emerald-400" : "text-rose-500"
+              }`}
+            >
+              {asset.changePositive ? "\u25B2" : "\u25BC"} {asset.change}
+            </span>
+            <span className="h-1 w-1 rounded-full bg-white/10" aria-hidden="true" />
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 };

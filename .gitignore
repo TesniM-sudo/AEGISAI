@@ -18,7 +18,20 @@ __pycache__/
 
 # PyCharm settings
 .idea/
+.idea - Copy/
 
 # Pytest cache
 .pytest_cache/
 .env
+
+# Logs
+*.log
+logs/
+update_log.txt
+files/update_log.txt
+
+# Backups and temporary copies
+*.backup
+*.bak
+*.tmp
+* - Copy/

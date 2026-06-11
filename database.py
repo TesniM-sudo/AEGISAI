@@ -31,7 +31,9 @@ class MarketData(Base):
         return f"<MarketData(symbol={self.symbol}, date={self.date}, close={self.close})>"
 
 
+Base.metadata.create_all(engine)
+
+
 # Create table if it doesn't exist
 if __name__ == "__main__":
-    Base.metadata.create_all(engine)
     print("Database and table created successfully!")

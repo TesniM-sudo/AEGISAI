@@ -1,8 +1,12 @@
 import joblib
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent
 
 # Load models once
-logistic_model = joblib.load("logistic_model.pkl")
-iso_model = joblib.load("isolation_model.pkl")
+logistic_model = joblib.load(ROOT / "logistic_model.pkl")
+iso_model = joblib.load(ROOT / "isolation_model.pkl")
 
 def predict_risk(features: list) -> int:
     """

@@ -227,13 +227,18 @@
   /* --- Investor HUD & Ticker --- */
 
   .ticker-wrap {
-    @apply flex overflow-hidden whitespace-nowrap border-y border-white/5 bg-black/40 backdrop-blur-sm;
-    height: 32px;
+    @apply relative flex w-full overflow-hidden whitespace-nowrap border-y border-white/5 bg-black/40 backdrop-blur-sm;
+    height: 34px;
   }
 
   .ticker-move {
-    @apply flex items-center gap-12 px-6;
-    animation: ticker 60s linear infinite;
+    @apply flex min-w-max list-none items-center gap-0 py-0 pl-0;
+    animation: ticker 42s linear infinite;
+    will-change: transform;
+  }
+
+  .ticker-item {
+    @apply flex h-[34px] shrink-0 items-center gap-2 px-6 leading-none;
   }
 
   @keyframes ticker {

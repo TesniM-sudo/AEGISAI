@@ -19,11 +19,11 @@ from risk_engine import train_model
 SYMBOLS = ["BTC-USD", "ETH-USD", "AAPL", "TSLA", "EURUSD=X"]
 
 
-def _next_start_date(last_date: object) -> str:
+def _next_start_date(last_date: object) -> date:
     if pd.isna(last_date):
-        return "2020-01-01"
+        return date(2020, 1, 1)
     last_dt = pd.to_datetime(last_date).date()
-    return (last_dt + timedelta(days=1)).isoformat()
+    return last_dt + timedelta(days=1)
 
 
 def update_market_data() -> dict:
@@ -40,11 +40,22 @@ def update_market_data() -> dict:
             )
             last_date = result.iloc[0]["last_date"]
             start_date = _next_start_date(last_date)
+            end_date = date.today()
+
+            if start_date >= end_date:
+                print(f"  {symbol}: Already up to date.")
+                per_symbol[symbol] = 0
+                continue
 
             data = None
             for attempt in range(3):
                 try:
-                    data = yf.download(symbol, start=start_date, progress=False)
+                    data = yf.download(
+                        symbol,
+                        start=start_date.isoformat(),
+                        end=end_date.isoformat(),
+                        progress=False,
+                    )
                     break
                 except Exception:
                     time.sleep(1.5 * (2**attempt))
