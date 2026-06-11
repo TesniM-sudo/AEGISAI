@@ -22,14 +22,22 @@ __pycache__/
 
 # PyCharm settings
 .idea/
+.idea - Copy/
 
 # Pytest cache
 .pytest_cache/
 .env
 
-# Runtime logs and backup copies
+# Runtime logs
 *.log
+logs/
+update_log.txt
+files/update_log.txt
+
+# Backup and temporary copies
+*.backup
 *.bak
 *.bak2
-*.backup
 *.bak_*
+*.tmp
+* - Copy/

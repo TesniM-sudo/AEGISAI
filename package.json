@@ -1,0 +1,9 @@
+{
+  "name": "aegisai",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix AegisAI_Website run dev",
+    "build": "npm --prefix AegisAI_Website run build",
+    "test": "npm --prefix AegisAI_Website run test"
+  }
+}
