@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from database import engine, MarketData
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -58,6 +58,10 @@ def sanitize_records(records):
             for key, value in record.items()
         })
     return cleaned
+
+
+def table_exists(table_name: str) -> bool:
+    return inspect(engine).has_table(table_name)
 
 # ── Helper Function ───────────────────────────────────────────────────────────
 def query_table(table_class, symbol=None):
@@ -116,6 +120,8 @@ def get_data(symbol: str = None):
 
 @app.get("/get-features")
 def get_features(symbol: str = None):
+    if not table_exists("market_data_features"):
+        raise HTTPException(status_code=404, detail="Features not found")
     session = Session()
     df = pd.read_sql("SELECT * FROM market_data_features", session.bind)
     session.close()
@@ -128,6 +134,8 @@ def get_features(symbol: str = None):
 # ── Risk Endpoints ───────────────────────────────────────────────────────────
 @app.get("/risk/latest")
 def risk_latest(symbol: str):
+    if not table_exists("market_risk_predictions"):
+        raise HTTPException(status_code=404, detail="No risk prediction found for this symbol.")
     with engine.connect() as conn:
         df = pd.read_sql(
             text("""
@@ -145,6 +153,8 @@ def risk_latest(symbol: str):
 
 @app.get("/risk/history")
 def risk_history(symbol: str, limit: int = 200):
+    if not table_exists("market_risk_predictions"):
+        raise HTTPException(status_code=404, detail="No risk history found for this symbol.")
     with engine.connect() as conn:
         df = pd.read_sql(
             text("""
@@ -162,6 +172,8 @@ def risk_history(symbol: str, limit: int = 200):
 
 @app.get("/risk/all")
 def risk_all():
+    if not table_exists("market_risk_predictions"):
+        raise HTTPException(status_code=404, detail="No risk data available.")
     with engine.connect() as conn:
         df = pd.read_sql(
             text("""
@@ -181,6 +193,8 @@ def risk_all():
 
 @app.get("/risk/summary")
 def risk_summary(symbol: str):
+    if not table_exists("market_risk_predictions"):
+        raise HTTPException(status_code=404, detail="No summary found for this symbol.")
     with engine.connect() as conn:
         df = pd.read_sql(
             text("""
@@ -299,6 +313,7 @@ def dashboard_assets():
         "EURUSD=X": {"name": "EUR/USD",   "color": "#00b4d8", "glow_class": "glow-blue"},
     }
     assets = []
+    has_risk_table = table_exists("market_risk_predictions")
     with engine.connect() as conn:
         for symbol, meta in SYMBOL_META.items():
             df = pd.read_sql(text("""
@@ -317,10 +332,12 @@ def dashboard_assets():
             """), conn, params={"symbol": symbol})
             spark_data = list(reversed([float(x) for x in spark_df["close"].tolist()]))
 
-            risk_df = pd.read_sql(text("""
-                SELECT risk_flag FROM market_risk_predictions
-                WHERE symbol = :symbol ORDER BY date DESC LIMIT 1
-            """), conn, params={"symbol": symbol})
+            risk_df = pd.DataFrame()
+            if has_risk_table:
+                risk_df = pd.read_sql(text("""
+                    SELECT risk_flag FROM market_risk_predictions
+                    WHERE symbol = :symbol ORDER BY date DESC LIMIT 1
+                """), conn, params={"symbol": symbol})
             risk_flag = int(risk_df.iloc[0]["risk_flag"]) if not risk_df.empty else 0
             risk_band = "High" if risk_flag == 1 else "Low"
 

@@ -11,12 +11,40 @@ from datetime import date, timedelta
 
 import pandas as pd
 import yfinance as yf
+from sqlalchemy import inspect
 
 from database import engine
 from risk_engine import train_model
 
 
 SYMBOLS = ["BTC-USD", "ETH-USD", "AAPL", "TSLA", "EURUSD=X"]
+
+FEATURE_COLUMNS = [
+    "id", "symbol", "date", "open", "high", "low", "close", "volume",
+    "asset_type", "daily_return", "volatility_7d", "ma_7d", "ma_30d",
+]
+RISK_COLUMNS = [
+    "symbol", "date", "close", "daily_return", "volatility_7d",
+    "ma_7d", "ma_30d", "anomaly", "risk_flag", "risk_score",
+]
+
+
+def ensure_derived_tables() -> None:
+    inspector = inspect(engine)
+    if not inspector.has_table("market_data_features"):
+        pd.DataFrame(columns=FEATURE_COLUMNS).to_sql(
+            "market_data_features",
+            engine,
+            if_exists="replace",
+            index=False,
+        )
+    if not inspector.has_table("market_risk_predictions"):
+        pd.DataFrame(columns=RISK_COLUMNS).to_sql(
+            "market_risk_predictions",
+            engine,
+            if_exists="replace",
+            index=False,
+        )
 
 
 def _next_start_date(last_date: object) -> date:
@@ -117,6 +145,12 @@ def rebuild_features() -> dict:
     df = pd.read_sql("SELECT * FROM market_data", engine)
     if df.empty:
         print("  No market data found.")
+        pd.DataFrame(columns=FEATURE_COLUMNS).to_sql(
+            "market_data_features",
+            engine,
+            if_exists="replace",
+            index=False,
+        )
         return {"rows": 0}
 
     df["date"] = pd.to_datetime(df["date"])
@@ -134,9 +168,16 @@ def rebuild_features() -> dict:
 
 def rebuild_risk_predictions() -> dict:
     print("\n[STEP 3] Rebuilding market_risk_predictions...")
+    ensure_derived_tables()
     model = train_model()
     if model is None:
         print("  [!] Model training failed.")
+        pd.DataFrame(columns=RISK_COLUMNS).to_sql(
+            "market_risk_predictions",
+            engine,
+            if_exists="replace",
+            index=False,
+        )
         return {"ok": False}
 
     print("  [OK] market_risk_predictions updated.")
@@ -145,6 +186,7 @@ def rebuild_risk_predictions() -> dict:
 
 def run_update_all() -> dict:
     """Run the full update pipeline and return a small summary."""
+    ensure_derived_tables()
     started = date.today().isoformat()
     market = update_market_data()
     features = rebuild_features()
