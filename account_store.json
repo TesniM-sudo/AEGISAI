@@ -1,0 +1,240 @@
+{
+  "accounts": {
+    "test@aegisai.com": {
+      "email": "test@aegisai.com",
+      "password": "admin123",
+      "role": "user",
+      "portfolio": {
+        "startingCash": 100000,
+        "cash": 75450.5,
+        "holdings": [
+          {
+            "symbol": "BTC-USD",
+            "name": "Bitcoin",
+            "quantity": 0.5,
+            "avgPrice": 83420
+          },
+          {
+            "symbol": "AAPL",
+            "name": "Apple",
+            "quantity": 10,
+            "avgPrice": 214.82
+          }
+        ]
+      },
+      "history": [
+        {
+          "timestamp": "2026-05-02T14:15:32Z",
+          "side": "buy",
+          "symbol": "BTC-USD",
+          "quantity": 0.5,
+          "price": 83420,
+          "total": 41710,
+          "note": "Bitcoin purchase for long-term hold"
+        },
+        {
+          "timestamp": "2026-05-02T13:45:18Z",
+          "side": "buy",
+          "symbol": "AAPL",
+          "quantity": 10,
+          "price": 214.82,
+          "total": 2148.2,
+          "note": "Apple stock added to portfolio"
+        },
+        {
+          "timestamp": "2026-05-01T10:22:45Z",
+          "side": "buy",
+          "symbol": "TSLA",
+          "quantity": 5,
+          "price": 185.5,
+          "total": 927.5,
+          "note": null
+        },
+        {
+          "timestamp": "2026-04-30T16:55:12Z",
+          "side": "sell",
+          "symbol": "TSLA",
+          "quantity": 5,
+          "price": 184.36,
+          "total": 921.8,
+          "note": "Closed Tesla position"
+        },
+        {
+          "timestamp": "2026-04-29T09:30:00Z",
+          "side": "buy",
+          "symbol": "ETH-USD",
+          "quantity": 2,
+          "price": 4180,
+          "total": 8360,
+          "note": "Ethereum investment"
+        }
+      ],
+      "session_token": "AAbHa54EnNy-9bvoYsjb8K_DMgxqEvwC"
+    },
+    "admin@aegisai.com": {
+      "email": "admin@aegisai.com",
+      "password": "admin123",
+      "role": "admin",
+      "portfolio": {
+        "startingCash": 100000.0,
+        "cash": 65432.75,
+        "holdings": [
+          {
+            "symbol": "BTC-USD",
+            "name": "Bitcoin",
+            "quantity": 1,
+            "avgPrice": 83420
+          },
+          {
+            "symbol": "ETH-USD",
+            "name": "Ethereum",
+            "quantity": 5,
+            "avgPrice": 4180
+          }
+        ]
+      },
+      "history": [
+        {
+          "timestamp": "2026-05-02T13:20:15Z",
+          "side": "buy",
+          "symbol": "BTC-USD",
+          "quantity": 1,
+          "price": 83420,
+          "total": 83420,
+          "note": "Major Bitcoin investment"
+        },
+        {
+          "timestamp": "2026-05-02T12:45:30Z",
+          "side": "buy",
+          "symbol": "ETH-USD",
+          "quantity": 5,
+          "price": 4180,
+          "total": 20900,
+          "note": "Ethereum diversification"
+        },
+        {
+          "timestamp": "2026-05-01T14:10:22Z",
+          "side": "buy",
+          "symbol": "AAPL",
+          "quantity": 20,
+          "price": 214.82,
+          "total": 4296.4,
+          "note": "Apple tech stock"
+        },
+        {
+          "timestamp": "2026-05-01T11:33:48Z",
+          "side": "sell",
+          "symbol": "AAPL",
+          "quantity": 10,
+          "price": 215.5,
+          "total": 2155.0,
+          "note": "Partial profit taking"
+        },
+        {
+          "timestamp": "2026-04-30T15:22:10Z",
+          "side": "buy",
+          "symbol": "EUR/USD",
+          "quantity": 5000,
+          "price": 1.0894,
+          "total": 5447.0,
+          "note": "Forex position"
+        },
+        {
+          "timestamp": "2026-04-30T10:15:55Z",
+          "side": "buy",
+          "symbol": "TSLA",
+          "quantity": 3,
+          "price": 184.36,
+          "total": 553.08,
+          "note": "Tesla purchase"
+        }
+      ],
+      "session_token": "C5texjZomxmOQXVF0-zRe_r-IWIvu8UW"
+    },
+    "ttestff@gmail.com": {
+      "email": "ttestff@gmail.com",
+      "password": "bbbb",
+      "role": "user",
+      "portfolio": {
+        "startingCash": 100000,
+        "cash": 89150.0,
+        "holdings": [
+          {
+            "symbol": "AAPL",
+            "name": "Apple",
+            "quantity": 25,
+            "avgPrice": 214.82
+          },
+          {
+            "symbol": "TSLA",
+            "name": "Tesla",
+            "quantity": 5,
+            "avgPrice": 184.36
+          }
+        ]
+      },
+      "history": [
+        {
+          "timestamp": "2026-05-02T14:35:20Z",
+          "side": "buy",
+          "symbol": "AAPL",
+          "quantity": 25,
+          "price": 214.82,
+          "total": 5370.5,
+          "note": "Apple stock position"
+        },
+        {
+          "timestamp": "2026-05-02T14:12:05Z",
+          "side": "buy",
+          "symbol": "TSLA",
+          "quantity": 5,
+          "price": 184.36,
+          "total": 921.8,
+          "note": "Tesla purchase"
+        },
+        {
+          "timestamp": "2026-04-30T13:45:30Z",
+          "side": "buy",
+          "symbol": "BTC-USD",
+          "quantity": 0.25,
+          "price": 83420,
+          "total": 20855.0,
+          "note": "Bitcoin exposure"
+        },
+        {
+          "timestamp": "2026-04-30T12:20:15Z",
+          "side": "sell",
+          "symbol": "BTC-USD",
+          "quantity": 0.25,
+          "price": 82500,
+          "total": 20625.0,
+          "note": "Partial exit"
+        },
+        {
+          "timestamp": "2026-04-29T11:05:00Z",
+          "side": "buy",
+          "symbol": "ETH-USD",
+          "quantity": 1,
+          "price": 4180,
+          "total": 4180.0,
+          "note": "Ethereum investment"
+        }
+      ],
+      "session_token": "LOyGLEOfel-pZHhz7bxLuQVNtUQmuN6r"
+    }
+  },
+  "account_deletion_feedback": [
+    {
+      "email": "temp-delete@aegisai.com",
+      "role": "user",
+      "feedback": "temporary verification account",
+      "deleted_by": "temp-delete@aegisai.com"
+    },
+    {
+      "email": "jj@gmail.com",
+      "role": "user",
+      "feedback": "stupid",
+      "deleted_by": "jj@gmail.com"
+    }
+  ]
+}

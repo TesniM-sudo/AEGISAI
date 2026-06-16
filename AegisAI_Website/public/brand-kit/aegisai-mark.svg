@@ -1,0 +1,20 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shieldGrad" x1="22" y1="18" x2="104" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60E8FF"/>
+      <stop offset="0.55" stop-color="#7B7EFF"/>
+      <stop offset="1" stop-color="#FFD86B"/>
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="34" y1="84" x2="89" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60E8FF"/>
+      <stop offset="1" stop-color="#FFD86B"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="108" height="108" rx="28" fill="#08111E"/>
+  <path d="M64 22L92 31V56C92 76.05 80.45 93.94 64 102C47.55 93.94 36 76.05 36 56V31L64 22Z" stroke="url(#shieldGrad)" stroke-width="6" fill="#0B1728"/>
+  <path d="M46 76L58 62L68 68L84 48" stroke="url(#lineGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="46" cy="76" r="4.5" fill="#60E8FF"/>
+  <circle cx="58" cy="62" r="4.5" fill="#7B7EFF"/>
+  <circle cx="68" cy="68" r="4.5" fill="#7B7EFF"/>
+  <circle cx="84" cy="48" r="4.5" fill="#FFD86B"/>
+</svg>
