@@ -1,15 +1,17 @@
-from config import DB_PATH
-from sqlalchemy import create_engine, Column, Integer, String, Float, Date, UniqueConstraint
+from pathlib import Path
+
+from sqlalchemy import Column, Date, Float, Integer, String, UniqueConstraint, create_engine
 from sqlalchemy.orm import declarative_base
 
-# Create SQLite database using an absolute path so npm/vite cwd does not matter.
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "aegisai.db"
+
+# Use an absolute path so npm/vite cwd does not affect the backend database.
 engine = create_engine(f"sqlite:///{DB_PATH.as_posix()}", echo=False)
 
-# Define Base
 Base = declarative_base()
 
 
-# Define Market Data table
 class MarketData(Base):
     __tablename__ = "market_data"
 
@@ -23,7 +25,6 @@ class MarketData(Base):
     volume = Column(Float)
     asset_type = Column(String)
 
-    # Prevents duplicate (symbol + date) entries
     __table_args__ = (
         UniqueConstraint("symbol", "date", name="uq_symbol_date"),
     )
@@ -35,6 +36,5 @@ class MarketData(Base):
 Base.metadata.create_all(engine)
 
 
-# Create table if it doesn't exist
 if __name__ == "__main__":
     print("Database and table created successfully!")

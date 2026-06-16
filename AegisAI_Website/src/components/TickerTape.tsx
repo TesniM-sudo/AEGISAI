@@ -3,8 +3,13 @@ import { useEffect, useState } from "react";
 import { cryptoAssets } from "@/data/cryptoData";
 import { fetchDashboardAssets, type DashboardAsset } from "@/lib/marketApi";
 
+const fallbackAssets: DashboardAsset[] = cryptoAssets.map((asset) => ({
+  ...asset,
+  sparkData: [...asset.sparkData],
+}));
+
 const TickerTape = () => {
-  const [assets, setAssets] = useState<DashboardAsset[]>(cryptoAssets);
+  const [assets, setAssets] = useState<DashboardAsset[]>(fallbackAssets);
 
   useEffect(() => {
     let isMounted = true;
@@ -20,8 +25,8 @@ const TickerTape = () => {
       }
     };
 
-    loadAssets();
-    const intervalId = window.setInterval(loadAssets, 60_000);
+    void loadAssets();
+    const intervalId = window.setInterval(() => void loadAssets(), 60_000);
 
     return () => {
       isMounted = false;

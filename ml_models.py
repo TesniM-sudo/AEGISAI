@@ -1,12 +1,13 @@
-import joblib
 from pathlib import Path
 
+import joblib
 
-ROOT = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent
 
-# Load models once
-logistic_model = joblib.load(ROOT / "logistic_model.pkl")
-iso_model = joblib.load(ROOT / "isolation_model.pkl")
+# Load models once using paths relative to this file, not the shell cwd.
+logistic_model = joblib.load(BASE_DIR / "logistic_model.pkl")
+iso_model = joblib.load(BASE_DIR / "isolation_model.pkl")
+
 
 def predict_risk(features: list) -> int:
     """
@@ -18,6 +19,7 @@ def predict_risk(features: list) -> int:
     """
     return int(logistic_model.predict([features])[0])
 
+
 def predict_anomaly(features: list) -> int:
     """
     Predict anomaly using Isolation Forest.
@@ -26,4 +28,4 @@ def predict_anomaly(features: list) -> int:
     Returns:
         int: -1 anomaly, 1 normal
     """
-    return int(iso_model.predict([features])[0])  # ← fixed
+    return int(iso_model.predict([features])[0])
