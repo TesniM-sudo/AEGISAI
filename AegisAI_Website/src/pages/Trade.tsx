@@ -8,7 +8,7 @@ import { fetchCandles } from "@/lib/marketApi";
 import { loadStoredPortfolio, saveStoredPortfolio, type HistoryEntry, type PortfolioState, type SessionData } from "@/lib/portfolioStorage";
 
 const SESSION_KEY = "aegis_account_session_v2";
-const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "";
 
 type TradeSide = "buy" | "sell";
 

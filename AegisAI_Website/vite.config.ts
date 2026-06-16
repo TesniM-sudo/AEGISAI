@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => ({
       "/predict": "http://127.0.0.1:8010",
       "/graph": "http://127.0.0.1:8010",
       "/admin/update": "http://127.0.0.1:8010",
+      "/account": "http://127.0.0.1:8010",
       "/health": "http://127.0.0.1:8010",
     },
   },
