@@ -4,7 +4,7 @@ import { cryptoAssets } from "@/data/cryptoData";
 import type { AdminAccountView, AdminAccountsResponse, SessionData } from "@/lib/portfolioStorage";
 
 const SESSION_KEY = "aegis_account_session_v2";
-const API_BASE = import.meta.env.VITE_MARKET_API_URL || "http://127.0.0.1:8010";
+const API_BASE = import.meta.env.VITE_MARKET_API_URL || "";
 
 type HistoryRow = AdminAccountView["history"][number] & {
   assetName: string;
