@@ -346,6 +346,8 @@ def dashboard_assets():
                 display_price = latest_close
             if live_change_pct is not None:
                 change_pct = live_change_pct
+            if not math.isfinite(change_pct):
+                change_pct = 0.0
 
             spark_df = pd.read_sql(text("""
                 SELECT close FROM market_data
